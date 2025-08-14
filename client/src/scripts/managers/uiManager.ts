@@ -72,6 +72,11 @@ class UIManagerClass {
 
     public hasC4s = false;
 
+    // Zombie Mode State Tracking
+    zombieCount = 0;
+    zombieModeActive = false;
+    zombieEvolutionLevel = 0;
+
     blockEmoting = false;
 
     getRawPlayerNameNullish(id: number): string | undefined {
@@ -285,6 +290,11 @@ class UIManagerClass {
 
         c4Button: $<HTMLButtonElement>("#c4-detonate-btn"),
         detonateKey: $<HTMLDivElement>("#detonate-key"),
+
+        // Zombie Mode UI Elements
+        zombieCounter: $<HTMLDivElement>("#zombie-counter"),
+        zombieModeIndicator: $<HTMLDivElement>("#zombie-mode-indicator"),
+        zombieEvolutionLevel: $<HTMLDivElement>("#zombie-evolution-level"),
 
         inventoryMsg: $<HTMLSpanElement>("#inventory-message"),
 
@@ -565,6 +575,70 @@ class UIManagerClass {
 
         this.gameOverScreenTimeout = window.setTimeout(() => gameOverOverlay.fadeIn(500), 500);
         setTimeout(() => ScreenRecordManager.endRecording(), 2500);
+    }
+
+    /**
+     * Update zombie mode UI elements
+     */
+    updateZombieUI(): void {
+        // Count zombies in the game
+        let zombieCount = 0;
+        let zombieModeActive = false;
+
+        for (const player of Game.objects.getCategory(ObjectCategory.Player)) {
+            if ((player as Player).isZombie) {
+                zombieCount++;
+                zombieModeActive = true;
+            }
+        }
+
+        // Update zombie counter
+        if (zombieCount !== this.zombieCount) {
+            this.zombieCount = zombieCount;
+            this.ui.zombieCounter.text(`🧟 ${zombieCount}`);
+            this.ui.zombieCounter.toggle(zombieCount > 0);
+        }
+
+        // Update zombie mode indicator
+        if (zombieModeActive !== this.zombieModeActive) {
+            this.zombieModeActive = zombieModeActive;
+            this.ui.zombieModeIndicator.toggle(zombieModeActive);
+            this.ui.zombieModeIndicator.text(zombieModeActive ? "ZOMBIE MODE ACTIVE" : "");
+
+            if (zombieModeActive) {
+                this.ui.zombieModeIndicator.addClass("zombie-mode-active");
+                // Show the entire zombie UI container when zombie mode is active
+                $("#zombie-ui-container").show();
+            } else {
+                this.ui.zombieModeIndicator.removeClass("zombie-mode-active");
+                // Hide the entire zombie UI container when zombie mode is inactive
+                $("#zombie-ui-container").hide();
+            }
+        }
+    }
+
+    /**
+     * Update zombie evolution level display
+     */
+    updateZombieEvolution(level: number): void {
+        if (level !== this.zombieEvolutionLevel) {
+            this.zombieEvolutionLevel = level;
+            this.ui.zombieEvolutionLevel.text(level > 0 ? `Evolution Level: ${level}` : "");
+            this.ui.zombieEvolutionLevel.toggle(level > 0);
+        }
+    }
+
+    /**
+     * Reset zombie mode UI elements
+     */
+    resetZombieUI(): void {
+        this.zombieCount = 0;
+        this.zombieModeActive = false;
+        this.zombieEvolutionLevel = 0;
+
+        this.ui.zombieCounter.hide().text("");
+        this.ui.zombieModeIndicator.hide().text("").removeClass("zombie-mode-active");
+        this.ui.zombieEvolutionLevel.hide().text("");
     }
 
     updateRequestableItems(): void {
@@ -854,6 +928,9 @@ class UIManagerClass {
         }
 
         this.blockEmoting = blockEmoting;
+
+        // Update zombie mode UI elements
+        this.updateZombieUI();
     }
 
     reportedPlayerIDs = new Map<number, boolean>();
@@ -1707,6 +1784,9 @@ class UIManagerClass {
         this.clearWeaponCache();
         this.reportedPlayerIDs.clear();
         this.killLeaderCache = undefined;
+
+        // Reset zombie mode UI
+        this.resetZombieUI();
         this.oldKillLeaderId = undefined;
         this.skinID = undefined;
     }

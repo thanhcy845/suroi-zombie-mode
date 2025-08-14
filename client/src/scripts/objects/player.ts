@@ -66,6 +66,8 @@ export class Player extends GameObject.derive(ObjectCategory.Player) {
     halloweenThrowableSkin = false;
 
     infected = false;
+    isZombie = false;
+    zombieType?: string;
 
     hasBubble = false;
 
@@ -555,6 +557,8 @@ export class Player extends GameObject.derive(ObjectCategory.Player) {
                     halloweenThrowableSkin,
                     activeDisguise,
                     infected,
+                    isZombie,
+                    zombieType,
                     backEquippedMelee,
                     hasBubble,
                     activeOverdrive
@@ -775,6 +779,23 @@ export class Player extends GameObject.derive(ObjectCategory.Player) {
                 if (!isNew) {
                     if (infected) this.playSound("infected");
                     else this.playSound("cured");
+                }
+            }
+
+            // Enhanced Zombie Visual Differentiation System
+            if (isZombie !== this.isZombie || zombieType !== this.zombieType) {
+                this.isZombie = isZombie;
+                this.zombieType = zombieType;
+
+                if (isZombie) {
+                    // Apply zombie-specific visual effects
+                    this.applyZombieVisualEffects(zombieType);
+                    if (!isNew) {
+                        this.playSound("zombie_spawn");
+                    }
+                } else {
+                    // Reset to normal player appearance
+                    this.resetZombieVisualEffects();
                 }
             }
 
@@ -2179,5 +2200,114 @@ export class Player extends GameObject.derive(ObjectCategory.Player) {
         this.actionSound?.stop();
         clearInterval(this.bleedEffectInterval);
         if (this.isActivePlayer) $("#action-container").hide();
+    }
+
+    /**
+     * Apply zombie-specific visual effects based on zombie type
+     */
+    private applyZombieVisualEffects(zombieType?: string): void {
+        // Define zombie type colors and effects
+        const zombieEffects = {
+            basic: { tint: 0x4a4a4a, glow: 0x666666, intensity: 0.3 },
+            fast: { tint: 0x8b0000, glow: 0xff0000, intensity: 0.5 },
+            tank: { tint: 0x2d4a2d, glow: 0x00ff00, intensity: 0.4 },
+            swarm: { tint: 0x4a2d4a, glow: 0xff00ff, intensity: 0.3 }
+        };
+
+        const effect = zombieEffects[zombieType as keyof typeof zombieEffects] || zombieEffects.basic;
+
+        // Apply zombie tint (darker, more menacing)
+        this.container.tint = effect.tint;
+
+        // Add zombie-specific visual indicators
+        this.addZombieGlowEffect(effect.glow, effect.intensity);
+        this.addZombieNameTag();
+
+        // Modify movement animation speed for different zombie types
+        if (zombieType === "fast") {
+            this.container.scale.set(0.95); // Slightly smaller, more agile appearance
+        } else if (zombieType === "tank") {
+            this.container.scale.set(1.1); // Larger, more imposing
+        }
+    }
+
+    /**
+     * Reset zombie visual effects to normal player appearance
+     */
+    private resetZombieVisualEffects(): void {
+        this.container.tint = 0xffffff;
+        this.container.scale.set(1.0);
+        this.removeZombieGlowEffect();
+        this.removeZombieNameTag();
+    }
+
+    /**
+     * Add glowing effect around zombie
+     */
+    private addZombieGlowEffect(color: number, intensity: number): void {
+        // Remove existing glow if present
+        this.removeZombieGlowEffect();
+
+        // Create glow filter effect
+        const glowFilter = new PIXI.filters.GlowFilter({
+            distance: 15,
+            outerStrength: intensity,
+            innerStrength: 0.5,
+            color: color,
+            quality: 0.5
+        });
+
+        if (!this.container.filters) {
+            this.container.filters = [];
+        }
+        this.container.filters.push(glowFilter);
+    }
+
+    /**
+     * Remove zombie glow effect
+     */
+    private removeZombieGlowEffect(): void {
+        if (this.container.filters) {
+            this.container.filters = this.container.filters.filter(
+                filter => !(filter instanceof PIXI.filters.GlowFilter)
+            );
+            if (this.container.filters.length === 0) {
+                this.container.filters = null;
+            }
+        }
+    }
+
+    /**
+     * Add zombie-specific name tag styling
+     */
+    private addZombieNameTag(): void {
+        if (this.nameText) {
+            this.nameText.style.fill = 0xff4444; // Red text for zombies
+            this.nameText.style.stroke = 0x000000;
+            this.nameText.style.strokeThickness = 2;
+
+            // Add zombie prefix to name
+            const originalText = this.nameText.text;
+            if (!originalText.startsWith("🧟")) {
+                this.nameText.text = `🧟 ${originalText}`;
+            }
+        }
+    }
+
+    /**
+     * Remove zombie name tag styling
+     */
+    private removeZombieNameTag(): void {
+        if (this.nameText) {
+            this.nameText.style.fill = 0xffffff; // Reset to white
+            this.nameText.style.stroke = 0x000000;
+            this.nameText.style.strokeThickness = 1;
+
+            // Remove zombie prefix
+            const text = this.nameText.text;
+            if (text.startsWith("🧟 ")) {
+                this.nameText.text = text.substring(2);
+            }
+        }
     }
 }
