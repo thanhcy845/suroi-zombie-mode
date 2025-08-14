@@ -1,0 +1,128 @@
+{
+  "Zombie Player Class": {
+    "prefix": "zombie-player",
+    "body": [
+      "export class ${1:ZombieName}Player extends ZombiePlayer {",
+      "    constructor(game: Game, position: Vector) {",
+      "        super(game, ZombieTypes.fromString(\"${2:zombie_type}\"), position);",
+      "    }",
+      "",
+      "    override update(): void {",
+      "        if (this.dead) return;",
+      "        ${3:// Custom zombie behavior}",
+      "        super.update();",
+      "    }",
+      "",
+      "    override zombieAttack(target: Player): void {",
+      "        ${4:// Custom attack behavior}",
+      "        super.zombieAttack(target);",
+      "    }",
+      "}"
+    ],
+    "description": "Create a custom zombie player class"
+  },
+  "Zombie Type Definition": {
+    "prefix": "zombie-type",
+    "body": [
+      "{",
+      "    idString: \"${1:zombie_id}\",",
+      "    name: \"${2:Zombie Name}\",",
+      "    health: ${3:100},",
+      "    speed: ${4:1.0},",
+      "    damage: ${5:25},",
+      "    attackRange: ${6:2.5},",
+      "    detectionRange: ${7:15},",
+      "    skin: \"${8:skin_name}\",",
+      "    evolutionLevel: ${9:0},",
+      "    aggressionLevel: ${10:0.6},",
+      "    packBehavior: ${11:true}",
+      "}"
+    ],
+    "description": "Create a zombie type definition"
+  },
+  "AI Behavior State": {
+    "prefix": "ai-behavior",
+    "body": [
+      "private handle${1:StateName}State(): void {",
+      "    ${2:// State logic}",
+      "    const nearestPlayer = this.findNearestPlayer();",
+      "    ",
+      "    if (${3:condition}) {",
+      "        this.setState(ZombieAIState.${4:NextState}, nearestPlayer);",
+      "    }",
+      "}"
+    ],
+    "description": "Create an AI behavior state handler"
+  },
+  "Zombie Manager Method": {
+    "prefix": "zombie-manager",
+    "body": [
+      "${1:methodName}(): ${2:void} {",
+      "    for (const zombie of this.zombies) {",
+      "        if (zombie.dead) continue;",
+      "        ${3:// Zombie operation}",
+      "    }",
+      "}"
+    ],
+    "description": "Create a zombie manager method"
+  },
+  "Evolution Handler": {
+    "prefix": "evolution-handler",
+    "body": [
+      "override evolve(multiplier: number): void {",
+      "    super.evolve(multiplier);",
+      "    ",
+      "    ${1:// Custom evolution behavior}",
+      "    this.${2:customProperty} *= multiplier;",
+      "    ",
+      "    this.setDirty();",
+      "}"
+    ],
+    "description": "Create a custom evolution handler"
+  },
+  "Zombie Spawn Logic": {
+    "prefix": "zombie-spawn",
+    "body": [
+      "spawnZombie(type: string, position?: Vector): ZombiePlayer | undefined {",
+      "    const zombieType = ZombieTypes.fromString(type);",
+      "    const spawnPos = position || this.findSpawnPosition();",
+      "    ",
+      "    if (!spawnPos) return undefined;",
+      "    ",
+      "    const zombie = new ZombiePlayer(this.game, zombieType, spawnPos);",
+      "    this.addZombieToGame(zombie);",
+      "    ",
+      "    return zombie;",
+      "}"
+    ],
+    "description": "Create zombie spawning logic"
+  },
+  "AI State Machine": {
+    "prefix": "ai-state-machine",
+    "body": [
+      "private updateStateMachine(): void {",
+      "    switch (this._currentState) {",
+      "        case ZombieAIState.${1:State1}:",
+      "            this.handle${1:State1}();",
+      "            break;",
+      "        case ZombieAIState.${2:State2}:",
+      "            this.handle${2:State2}();",
+      "            break;",
+      "        default:",
+      "            this.setState(ZombieAIState.Idle);",
+      "    }",
+      "}"
+    ],
+    "description": "Create AI state machine logic"
+  },
+  "Zombie Import Block": {
+    "prefix": "zombie-imports",
+    "body": [
+      "import { ZombiePlayer } from \"../zombies/zombiePlayer\";",
+      "import { ZombieManager } from \"../zombies/zombieManager\";",
+      "import { ZombieTypes, type ZombieTypeDefinition } from \"../zombies/zombieTypes\";",
+      "import { ZombieAI, ZombieAIState } from \"../zombies/zombieAI\";"
+    ],
+    "description": "Import zombie-related modules"
+  }
+}

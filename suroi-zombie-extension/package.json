@@ -1,0 +1,73 @@
+{
+  "name": "suroi-zombie-dev",
+  "displayName": "Suroi Zombie Development Tools",
+  "description": "VSCode extension for developing zombie mode enhancements in Suroi",
+  "version": "1.0.0",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Snippets",
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:typescript",
+    "onLanguage:javascript"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "suroiZombie.createZombieClass",
+        "title": "Create Zombie Class",
+        "category": "Suroi Zombie"
+      },
+      {
+        "command": "suroiZombie.createZombieType",
+        "title": "Create Zombie Type Definition",
+        "category": "Suroi Zombie"
+      },
+      {
+        "command": "suroiZombie.createAIBehavior",
+        "title": "Create AI Behavior",
+        "category": "Suroi Zombie"
+      },
+      {
+        "command": "suroiZombie.setupZombieProject",
+        "title": "Setup Zombie Development Environment",
+        "category": "Suroi Zombie"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "typescript",
+        "path": "./snippets/zombie-snippets.json"
+      }
+    ],
+    "configuration": {
+      "title": "Suroi Zombie Development",
+      "properties": {
+        "suroiZombie.autoImports": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically add zombie-related imports"
+        },
+        "suroiZombie.debugMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable debug logging for zombie development"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "typescript": "^4.9.4"
+  }
+}
