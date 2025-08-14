@@ -34,11 +34,14 @@ export class ZombieAI {
     private _currentState = ZombieAIState.Idle;
     private _target?: Player;
     private _targetPosition?: Vector;
+    private _intermediateTarget?: Vector;
     private _lastPathUpdate = 0;
     private _lastTargetSwitch = 0;
     private _wanderTarget?: Vector;
     private _stuckPosition?: Vector;
     private _stuckTime = 0;
+    private _circlingStartTime = 0;
+    private _circlingTimeout = 5000; // 5 seconds max circling
     private _aggroUntil = 0;
     private _lastPosition: Vector;
     
@@ -210,21 +213,34 @@ export class ZombieAI {
     }
     
     private updatePathfinding(): void {
-        // Simple pathfinding - move towards target
         if (!this._targetPosition) return;
-        
+
+        // Use the advanced pathfinding with obstacle avoidance
+        const pathTarget = this.findPathToTarget(this._targetPosition);
+        if (pathTarget) {
+            this._intermediateTarget = pathTarget;
+        }
+
+        // Call pack coordination for pack zombies
+        if (this.zombie.zombieType.packBehavior) {
+            this.coordinateWithPack();
+        }
+
         const direction = Vec.sub(this._targetPosition, this.zombie.position);
         const distance = Vec.len(direction);
-        
+
         if (distance < 0.1) return;
-        
+
         const normalized = Vec.scale(direction, 1 / distance);
-        
-        // Add some randomness to avoid getting stuck
+
+        // Add noise but don't modify original target
         const noise = Vec.fromPolar(randomFloat(0, Math.PI * 2), 0.1);
-        const finalDirection = Vec.add(normalized, noise);
-        
-        this._targetPosition = Vec.add(this.zombie.position, Vec.scale(finalDirection, 2));
+        const noisyDirection = Vec.add(normalized, noise);
+
+        // Create intermediate waypoint instead of modifying target (fallback if no pathTarget)
+        if (!this._intermediateTarget) {
+            this._intermediateTarget = Vec.add(this.zombie.position, Vec.scale(noisyDirection, 2));
+        }
     }
     
     getCurrentState(): AIState {
@@ -299,10 +315,26 @@ export class ZombieAI {
                     finalDirection = Vec.add(finalDirection, Vec.scale(normalizedSeparation, separationForce));
                 }
 
-                // If very close, implement circling behavior instead of direct approach
+                // If very close, implement circling behavior with timeout
                 if (distance < ZombieAIConstants.circlingRadius && this._currentState === ZombieAIState.Attacking) {
-                    const circleDirection = this.getCirclingDirection(player.position);
-                    finalDirection = Vec.lerp(finalDirection, circleDirection, ZombieAIConstants.circlingSpeed);
+                    const now = this.zombie.game.now;
+
+                    // Start circling timer if not already circling
+                    if (this._circlingStartTime === 0) {
+                        this._circlingStartTime = now;
+                    }
+
+                    // Escape circling after timeout
+                    if (now - this._circlingStartTime > this._circlingTimeout) {
+                        this._circlingStartTime = 0;
+                        // Force different behavior - maybe flee or switch target
+                        this.setWanderTarget();
+                    } else {
+                        const circleDirection = this.getCirclingDirection(player.position);
+                        finalDirection = Vec.lerp(finalDirection, circleDirection, ZombieAIConstants.circlingSpeed);
+                    }
+                } else {
+                    this._circlingStartTime = 0; // Reset circling timer
                 }
             }
         }

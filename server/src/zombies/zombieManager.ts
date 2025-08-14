@@ -139,35 +139,72 @@ export class ZombieManager {
 
             const zombie = new ZombiePlayer(this.game, zombieType, spawnPosition);
 
-        // Add to game systems
-        (this.game.livingPlayers as any).add(zombie);
-        (this.game.connectedPlayers as any).add(zombie);
-        (this.game.spectatablePlayers as any).push(zombie);
-        (this.game.newPlayers as any).push(zombie);
-        this.zombies.add(zombie);
+            // Transaction-like spawning - all or nothing
+            const addOperations = [
+                () => (this.game.livingPlayers as any).add(zombie),
+                () => (this.game.connectedPlayers as any).add(zombie),
+                () => (this.game.spectatablePlayers as any).push(zombie),
+                () => (this.game.newPlayers as any).push(zombie),
+                () => this.zombies.add(zombie),
+                () => this.game.grid.addObject(zombie)
+            ];
 
-        // Add to grid and mark for updates
-        this.game.grid.addObject(zombie);
-        zombie.setDirty();
-        this.game.aliveCountDirty = true;
-        this.game.updateObjects = true;
+            // Execute all operations
+            const completedOperations: (() => void)[] = [];
+            for (const operation of addOperations) {
+                try {
+                    operation();
+                    completedOperations.push(operation);
+                } catch (error) {
+                    // Rollback on failure
+                    this.rollbackZombieSpawn(zombie, completedOperations);
+                    throw error;
+                }
+            }
 
-        // Apply current evolution level
-        if (this.evolutionLevel > 0) {
-            const multiplier = this.calculateEvolutionMultiplier();
-            zombie.evolve(multiplier);
-        }
+            // Mark for updates only after successful spawn
+            zombie.setDirty();
+            this.game.aliveCountDirty = true;
+            this.game.updateObjects = true;
 
-            // Update statistics
+            // Apply evolution and update stats
+            if (this.evolutionLevel > 0) {
+                const multiplier = this.calculateEvolutionMultiplier();
+                zombie.evolve(multiplier);
+            }
+
             this.stats.totalSpawned++;
             this.stats.currentActive = this.zombies.size;
 
             this.game.log(`Spawned ${zombieType.name} zombie at ${spawnPosition.x}, ${spawnPosition.y}`);
-
             return zombie;
+
         } catch (error) {
             this.game.log(`Error spawning zombie: ${error instanceof Error ? error.message : 'Unknown error'}`);
             return undefined;
+        }
+    }
+
+    private rollbackZombieSpawn(zombie: ZombiePlayer, completedOperations: (() => void)[]): void {
+        // Clean up any partial state
+        try {
+            (this.game.livingPlayers as any).delete(zombie);
+            (this.game.connectedPlayers as any).delete(zombie);
+            this.zombies.delete(zombie);
+
+            const specIndex = (this.game.spectatablePlayers as any).indexOf(zombie);
+            if (specIndex !== -1) {
+                (this.game.spectatablePlayers as any).splice(specIndex, 1);
+            }
+
+            const newIndex = (this.game.newPlayers as any).indexOf(zombie);
+            if (newIndex !== -1) {
+                (this.game.newPlayers as any).splice(newIndex, 1);
+            }
+
+            this.game.removeObject(zombie);
+        } catch (cleanupError) {
+            this.game.log(`Error during zombie spawn rollback: ${cleanupError}`);
         }
     }
 
@@ -400,25 +437,33 @@ export class ZombieManager {
      * Check if a position is valid for zombie spawning
      */
     private isValidSpawnPosition(position: Vector): boolean {
+        // First check gas zone boundary
+        if (this.game.gas) {
+            const distanceFromGasCenter = Geometry.distance(position, this.game.gas.currentPosition);
+            if (distanceFromGasCenter > this.game.gas.currentRadius * 0.9) {
+                return false; // Too close to gas edge
+            }
+        }
+
         // Check if too close to human players
         for (const player of this.game.livingPlayers) {
             if ((player as any).isZombie) continue;
 
             const distance = Geometry.distance(position, player.position);
-            if (distance < 20) return false; // Don't spawn too close to players
+            if (distance < 20) return false;
         }
 
         // Check for obstacles and buildings
         const nearbyObjects = this.game.grid.intersectsHitbox(
             new RectangleHitbox(Vec.sub(position, { x: 2, y: 2 }), Vec.add(position, { x: 2, y: 2 }))
         );
-        
+
         for (const obj of nearbyObjects) {
             if (obj.isObstacle && !obj.definition.noCollisions) {
                 return false;
             }
         }
-        
+
         return true;
     }
     

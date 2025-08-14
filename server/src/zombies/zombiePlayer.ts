@@ -82,30 +82,46 @@ export class ZombiePlayer extends Player {
     
     private processAIInputs(): void {
         const aiState = this.ai.getCurrentState();
-        
-        // Set movement based on AI
-        this.movement.up = aiState.movement.up;
-        this.movement.down = aiState.movement.down;
-        this.movement.left = aiState.movement.left;
-        this.movement.right = aiState.movement.right;
-        
-        // Set rotation to face target
-        if (aiState.target) {
-            const direction = Vec.sub(aiState.target, this.position);
-            this.rotation = Math.atan2(direction.y, direction.x);
-            this.turning = true;
+
+        // Validate AI state before applying
+        if (!aiState || !aiState.movement) {
+            this.game.log(`Invalid AI state for zombie ${this.name}`);
+            return;
         }
-        
-        // Handle attacking
-        if (aiState.shouldAttack && this.canAttack()) {
-            this.attacking = true;
-            this.startedAttacking = true;
-            this._lastAttackTime = this.game.now;
+
+        // Validate movement inputs
+        const movement = aiState.movement;
+        this.movement.up = Boolean(movement.up);
+        this.movement.down = Boolean(movement.down);
+        this.movement.left = Boolean(movement.left);
+        this.movement.right = Boolean(movement.right);
+
+        // Validate target position
+        if (aiState.target) {
+            const target = aiState.target;
+            if (isFinite(target.x) && isFinite(target.y)) {
+                const direction = Vec.sub(target, this.position);
+                const angle = Math.atan2(direction.y, direction.x);
+
+                if (isFinite(angle)) {
+                    this.rotation = angle;
+                    this.turning = true;
+                }
+            }
+        }
+
+        // Validate attack state
+        if (aiState.shouldAttack !== undefined && this.canAttack()) {
+            this.attacking = Boolean(aiState.shouldAttack);
+            this.startedAttacking = Boolean(aiState.shouldAttack);
+            if (aiState.shouldAttack) {
+                this._lastAttackTime = this.game.now;
+            }
         } else {
             this.attacking = false;
             this.startedAttacking = false;
         }
-        
+
         this.stoppedAttacking = false;
     }
     
