@@ -134,5 +134,20 @@ export const ZombieAIConstants = {
     circlingRadius: 4.0, // radius for circling behavior around players
     circlingSpeed: 0.3, // speed multiplier when circling
     personalSpace: 2.0, // minimum distance between zombies
-    maxAvoidanceAngle: Math.PI / 3 // maximum angle to deviate for avoidance
+    maxAvoidanceAngle: Math.PI / 3, // maximum angle to deviate for avoidance
+
+    // LOD (Level of Detail) System Constants
+    lodUpdateInterval: 1000, // ms - how often to recalculate LOD level
+    lodDistanceThresholds: {
+        high: 25,    // 0-25 units: Full AI processing
+        medium: 50,  // 25-50 units: Reduced pathfinding frequency
+        low: 75,     // 50-75 units: Basic AI only
+        minimal: 100 // 75+ units: Minimal processing
+    },
+    lodUpdateIntervals: {
+        high: 500,    // Full pathfinding every 500ms
+        medium: 1000, // Reduced pathfinding every 1000ms
+        low: 2000,    // Basic pathfinding every 2000ms
+        minimal: 5000 // Minimal pathfinding every 5000ms
+    }
 } as const;

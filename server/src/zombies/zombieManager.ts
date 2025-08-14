@@ -19,6 +19,10 @@ export class ZombieManager {
     private readonly chunkSize = 50; // Size of spawn chunks
     private readonly spawnRadius = { min: 25, max: 60 }; // Distance from players to spawn
     private readonly despawnRadius = 120; // Distance to despawn zombies
+
+    // LOD Performance Monitoring
+    private lastLODReport = 0;
+    private readonly lodReportInterval = 10000; // Report LOD stats every 10 seconds
     private readonly spawnInterval = 2000; // Check spawn every 2 seconds
     private readonly maxSpawnPerInterval = 2; // Max zombies to spawn per interval
 
@@ -92,6 +96,12 @@ export class ZombieManager {
         if (now - this.lastSpawnCheck >= this.spawnInterval) {
             this.updateDynamicSpawning();
             this.lastSpawnCheck = now;
+        }
+
+        // Report LOD performance statistics periodically
+        if (now - this.lastLODReport >= this.lodReportInterval) {
+            this.reportLODStatistics();
+            this.lastLODReport = now;
         }
     }
 
@@ -623,5 +633,84 @@ export class ZombieManager {
             const stats = this.getStats();
             this.game.log(`🧟 Zombie Stats: Active=${stats.currentActive}, Spawned=${stats.totalSpawned}, Killed=${stats.totalKilled}, Evolutions=${stats.evolutionEvents}`);
         }
+    }
+
+    /**
+     * Report LOD (Level of Detail) performance statistics
+     */
+    private reportLODStatistics(): void {
+        if (this.zombies.size === 0) return;
+
+        const lodDistribution = this.getLODDistribution();
+        const totalZombies = this.zombies.size;
+
+        this.game.log(`🎯 LOD Stats: Total=${totalZombies}, High=${lodDistribution.high}, Medium=${lodDistribution.medium}, Low=${lodDistribution.low}, Minimal=${lodDistribution.minimal}`);
+
+        // Warn if too many zombies are in high detail mode
+        if (lodDistribution.high > 15) {
+            this.game.warn(`⚠️ High LOD zombie count (${lodDistribution.high}) may impact performance`);
+        }
+    }
+
+    /**
+     * Get current LOD distribution across all zombies
+     */
+    getLODDistribution(): { high: number, medium: number, low: number, minimal: number } {
+        const distribution = { high: 0, medium: 0, low: 0, minimal: 0 };
+
+        for (const zombie of this.zombies) {
+            const ai = (zombie as any).ai;
+            if (ai && typeof ai.getLODLevel === 'function') {
+                const lodLevel = ai.getLODLevel();
+                switch (lodLevel) {
+                    case 0: distribution.high++; break;
+                    case 1: distribution.medium++; break;
+                    case 2: distribution.low++; break;
+                    case 3: distribution.minimal++; break;
+                }
+            }
+        }
+
+        return distribution;
+    }
+
+    /**
+     * Get performance metrics for LOD system
+     */
+    getLODPerformanceMetrics(): {
+        totalZombies: number,
+        lodDistribution: { high: number, medium: number, low: number, minimal: number },
+        averageDistance: number,
+        performanceScore: number
+    } {
+        const totalZombies = this.zombies.size;
+        const lodDistribution = this.getLODDistribution();
+
+        let totalDistance = 0;
+        let zombieCount = 0;
+
+        for (const zombie of this.zombies) {
+            const ai = (zombie as any).ai;
+            if (ai && typeof ai.getDistanceToNearestPlayer === 'function') {
+                const distance = ai.getDistanceToNearestPlayer();
+                if (distance !== Infinity) {
+                    totalDistance += distance;
+                    zombieCount++;
+                }
+            }
+        }
+
+        const averageDistance = zombieCount > 0 ? totalDistance / zombieCount : 0;
+
+        // Calculate performance score (higher is better)
+        // Fewer high-detail zombies = better performance
+        const performanceScore = Math.max(0, 100 - (lodDistribution.high * 3) - (lodDistribution.medium * 1.5));
+
+        return {
+            totalZombies,
+            lodDistribution,
+            averageDistance,
+            performanceScore
+        };
     }
 }

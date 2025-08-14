@@ -44,26 +44,41 @@ export class ZombieAI {
     private _circlingTimeout = 5000; // 5 seconds max circling
     private _aggroUntil = 0;
     private _lastPosition: Vector;
-    
+
+    // LOD (Level of Detail) System Properties
+    private _lodLevel = 0; // 0=High, 1=Medium, 2=Low, 3=Minimal
+    private _lastLODUpdate = 0;
+    private _lodUpdateInterval = 1000; // Update LOD every 1 second
+    private _distanceToNearestPlayer = Infinity;
+
     constructor(private zombie: ZombiePlayer) {
         this._lastPosition = Vec.clone(zombie.position);
     }
     
     update(): void {
         const now = this.zombie.game.now;
-        
-        // Check if stuck
+
+        // Update LOD level periodically
+        if (now - this._lastLODUpdate > this._lodUpdateInterval) {
+            this.updateLODLevel();
+            this._lastLODUpdate = now;
+        }
+
+        // Check if stuck (always run for safety)
         this.checkIfStuck();
-        
-        // Update pathfinding periodically
-        if (now - this._lastPathUpdate > ZombieAIConstants.pathfindingUpdateInterval) {
+
+        // Update pathfinding based on LOD level
+        const pathfindingInterval = this.getPathfindingInterval();
+        if (now - this._lastPathUpdate > pathfindingInterval) {
             this.updatePathfinding();
             this._lastPathUpdate = now;
         }
-        
-        // Update AI state
-        this.updateState();
-        
+
+        // Update AI state (frequency based on LOD)
+        if (this.shouldUpdateAIState()) {
+            this.updateState();
+        }
+
         // Update last position for stuck detection
         this._lastPosition = Vec.clone(this.zombie.position);
     }
@@ -526,5 +541,69 @@ export class ZombieAI {
                 // Basic zombies use simple approach
                 return Vec.add(this.zombie.position, Vec.scale(Vec.normalize(direction), 3));
         }
+    }
+
+    /**
+     * LOD (Level of Detail) System Implementation
+     * Optimizes AI processing based on distance to nearest player
+     */
+    private updateLODLevel(): void {
+        const nearestPlayer = this.findNearestPlayer();
+        this._distanceToNearestPlayer = nearestPlayer ?
+            Geometry.distance(this.zombie.position, nearestPlayer.position) : Infinity;
+
+        const thresholds = ZombieAIConstants.lodDistanceThresholds;
+
+        if (this._distanceToNearestPlayer <= thresholds.high) {
+            this._lodLevel = 0; // High detail
+        } else if (this._distanceToNearestPlayer <= thresholds.medium) {
+            this._lodLevel = 1; // Medium detail
+        } else if (this._distanceToNearestPlayer <= thresholds.low) {
+            this._lodLevel = 2; // Low detail
+        } else {
+            this._lodLevel = 3; // Minimal detail
+        }
+    }
+
+    /**
+     * Get pathfinding update interval based on current LOD level
+     */
+    private getPathfindingInterval(): number {
+        const intervals = ZombieAIConstants.lodUpdateIntervals;
+
+        switch (this._lodLevel) {
+            case 0: return intervals.high;    // 500ms
+            case 1: return intervals.medium;  // 1000ms
+            case 2: return intervals.low;     // 2000ms
+            case 3: return intervals.minimal; // 5000ms
+            default: return intervals.high;
+        }
+    }
+
+    /**
+     * Determine if AI state should be updated based on LOD level
+     */
+    private shouldUpdateAIState(): boolean {
+        switch (this._lodLevel) {
+            case 0: return true;  // High detail: Always update
+            case 1: return true;  // Medium detail: Always update
+            case 2: return Math.random() < 0.7; // Low detail: 70% chance
+            case 3: return Math.random() < 0.3; // Minimal detail: 30% chance
+            default: return true;
+        }
+    }
+
+    /**
+     * Get current LOD level for debugging and monitoring
+     */
+    getLODLevel(): number {
+        return this._lodLevel;
+    }
+
+    /**
+     * Get distance to nearest player for monitoring
+     */
+    getDistanceToNearestPlayer(): number {
+        return this._distanceToNearestPlayer;
     }
 }
