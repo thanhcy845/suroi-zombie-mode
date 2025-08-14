@@ -453,6 +453,11 @@ export class Game implements GameData {
         // Update gas
         this.gas.tick();
 
+        // Update zombie system if enabled
+        if (this._zombieModeEnabled) {
+            this.zombieManager.update();
+        }
+
         // First loop over players: movement, animations, & actions
         for (const player of this.livingPlayers) {
             player.update();

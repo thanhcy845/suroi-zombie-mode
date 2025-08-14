@@ -29,7 +29,6 @@ export class ZombieManager {
 
     // Chunk tracking
     private activeChunks = new Map<string, { lastActivity: number, zombieCount: number }>();
-    private spawnTimer?: NodeJS.Timeout;
 
     // Statistics tracking
     private stats = {
@@ -78,15 +77,22 @@ export class ZombieManager {
      * Start the dynamic spawning system
      */
     private startDynamicSpawning(): void {
-        if (this.spawnTimer) {
-            clearInterval(this.spawnTimer);
-        }
-
-        this.spawnTimer = setInterval(() => {
-            this.updateDynamicSpawning();
-        }, this.spawnInterval);
-
+        // Initialize spawning system (now tick-based, no intervals)
+        this.lastSpawnCheck = Date.now();
         this.game.log("Dynamic zombie spawning system started");
+    }
+
+    /**
+     * Public update method called from game tick loop
+     */
+    update(): void {
+        const now = Date.now();
+
+        // Only run spawning logic at intervals to avoid performance issues
+        if (now - this.lastSpawnCheck >= this.spawnInterval) {
+            this.updateDynamicSpawning();
+            this.lastSpawnCheck = now;
+        }
     }
 
     /**
@@ -371,10 +377,11 @@ export class ZombieManager {
         
         for (let i = 0; i < maxAttempts; i++) {
             // Try spawning near the edge of the safe zone
-            const gasRadius = this.game.gas.currentRadius;
+            const gasRadius = this.game.gas?.currentRadius ?? this.game.map.width * 0.4;
+            const gasPosition = this.game.gas?.currentPosition ?? { x: this.game.map.width / 2, y: this.game.map.height / 2 };
             const spawnRadius = gasRadius * 0.8; // Spawn within 80% of gas radius
-            
-            const position = randomPointInsideCircle(this.game.gas.currentPosition, spawnRadius);
+
+            const position = randomPointInsideCircle(gasPosition, spawnRadius);
             
             // Check if position is valid (not in buildings, obstacles, etc.)
             if (this.isValidSpawnPosition(position)) {
@@ -485,6 +492,9 @@ export class ZombieManager {
      * Internal zombie removal method
      */
     private removeZombieInternal(zombie: ZombiePlayer): void {
+        // Prevent double-removal race condition
+        if (!this.zombies.has(zombie)) return;
+
         this.zombies.delete(zombie);
         (this.game.livingPlayers as any).delete(zombie);
         (this.game.connectedPlayers as any).delete(zombie);
@@ -530,11 +540,7 @@ export class ZombieManager {
      * Clean up when game ends
      */
     cleanup(): void {
-        // Stop dynamic spawning
-        if (this.spawnTimer) {
-            clearInterval(this.spawnTimer);
-            this.spawnTimer = undefined;
-        }
+        // Clean up zombie system (no timers to clear in tick-based system)
 
         // Clear evolution timeouts
         for (const timeout of this.evolutionTimeouts) {
