@@ -154,16 +154,36 @@ export class ZombieAI {
     }
 
     private findNearestPlayer(): Player | undefined {
+        // Add comprehensive null/undefined checks
+        if (!this.zombie?.game?.livingPlayers || !this.zombie?.position) {
+            return undefined;
+        }
+
         let nearest: Player | undefined;
         let minDistance = Infinity;
 
         for (const player of this.zombie.game.livingPlayers) {
-            if (player.isZombie || player === this.zombie) continue;
+            // Enhanced validation checks
+            if (!player || player.isZombie || player === this.zombie || player.dead || !player.position) {
+                continue;
+            }
 
-            const distance = Geometry.distance(this.zombie.position, player.position);
-            if (distance < minDistance) {
-                minDistance = distance;
-                nearest = player;
+            try {
+                const distance = Geometry.distance(this.zombie.position, player.position);
+
+                // Validate distance calculation result
+                if (isNaN(distance) || !isFinite(distance)) {
+                    continue;
+                }
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearest = player;
+                }
+            } catch (error) {
+                // Log error but continue processing other players
+                console.warn(`Error calculating distance to player ${player.id}:`, error);
+                continue;
             }
         }
 
@@ -171,8 +191,36 @@ export class ZombieAI {
     }
 
     private canDetectPlayer(player: Player): boolean {
-        const distance = Geometry.distance(this.zombie.position, player.position);
-        return distance <= this.zombie.getDetectionRange();
+        // Comprehensive validation checks
+        if (!player?.position || !this.zombie?.position || player.dead || player.isZombie) {
+            return false;
+        }
+
+        // Validate zombie detection capabilities
+        if (!this.zombie.getDetectionRange || typeof this.zombie.getDetectionRange !== 'function') {
+            return false;
+        }
+
+        try {
+            const distance = Geometry.distance(this.zombie.position, player.position);
+
+            // Validate distance calculation
+            if (isNaN(distance) || !isFinite(distance)) {
+                return false;
+            }
+
+            const detectionRange = this.zombie.getDetectionRange();
+
+            // Validate detection range
+            if (isNaN(detectionRange) || !isFinite(detectionRange) || detectionRange <= 0) {
+                return false;
+            }
+
+            return distance <= detectionRange;
+        } catch (error) {
+            console.warn(`Error in canDetectPlayer for player ${player.id}:`, error);
+            return false;
+        }
     }
 
     private isInAttackRange(player: Player): boolean {
@@ -206,23 +254,111 @@ export class ZombieAI {
     }
 
     private reachedTarget(target: Vector): boolean {
-        return Geometry.distance(this.zombie.position, target) < 2;
+        // Validate inputs
+        if (!target || !this.zombie?.position) {
+            return false;
+        }
+
+        // Validate target coordinates
+        if (typeof target.x !== 'number' || typeof target.y !== 'number' ||
+            isNaN(target.x) || isNaN(target.y) || !isFinite(target.x) || !isFinite(target.y)) {
+            return false;
+        }
+
+        try {
+            const distance = Geometry.distance(this.zombie.position, target);
+
+            // Validate distance calculation
+            if (isNaN(distance) || !isFinite(distance)) {
+                return false;
+            }
+
+            // Use configurable threshold from constants, with fallback
+            const threshold = ZombieAIConstants.stuckThreshold || 1.0;
+            return distance < threshold;
+        } catch (error) {
+            console.warn(`Error in reachedTarget calculation:`, error);
+            return false;
+        }
     }
 
     private checkIfStuck(): void {
-        const distance = Geometry.distance(this.zombie.position, this._lastPosition);
+        // Validate zombie and game state
+        if (!this.zombie?.position || !this.zombie?.game?.now || !this._lastPosition) {
+            return;
+        }
 
-        if (distance < ZombieAIConstants.stuckThreshold) {
-            if (!this._stuckPosition) {
-                this._stuckPosition = Vec.clone(this.zombie.position);
-                this._stuckTime = this.zombie.game.now;
-            } else if (this.zombie.game.now - this._stuckTime > ZombieAIConstants.stuckTimeout) {
-                // Unstuck by setting new random target
-                this.setWanderTarget();
-                this._stuckPosition = undefined;
+        try {
+            const currentPos = this.zombie.position;
+            const now = this.zombie.game.now;
+
+            // Validate positions
+            if (typeof currentPos.x !== 'number' || typeof currentPos.y !== 'number' ||
+                isNaN(currentPos.x) || isNaN(currentPos.y) ||
+                typeof this._lastPosition.x !== 'number' || typeof this._lastPosition.y !== 'number' ||
+                isNaN(this._lastPosition.x) || isNaN(this._lastPosition.y)) {
+                return;
             }
-        } else {
+
+            const movementDistance = Geometry.distance(currentPos, this._lastPosition);
+
+            // Validate distance calculation
+            if (isNaN(movementDistance) || !isFinite(movementDistance)) {
+                return;
+            }
+
+            const stuckThreshold = ZombieAIConstants.stuckThreshold || 1.0;
+            const stuckTimeout = ZombieAIConstants.stuckTimeout || 3000;
+
+            if (movementDistance < stuckThreshold) {
+                if (!this._stuckPosition) {
+                    this._stuckPosition = Vec.clone(currentPos);
+                    this._stuckTime = now;
+                } else if (now - this._stuckTime > stuckTimeout) {
+                    // Force unstuck behavior with multiple strategies
+                    this.performUnstuckBehavior();
+                    this._stuckPosition = undefined;
+                    this._stuckTime = 0;
+                }
+            } else {
+                // Reset stuck detection when zombie is moving
+                this._stuckPosition = undefined;
+                this._stuckTime = 0;
+            }
+        } catch (error) {
+            console.warn(`Error in checkIfStuck for zombie ${this.zombie.id}:`, error);
+            // Reset stuck state on error to prevent permanent stuck condition
             this._stuckPosition = undefined;
+            this._stuckTime = 0;
+        }
+    }
+
+    /**
+     * Perform multiple unstuck strategies when zombie is detected as stuck
+     */
+    private performUnstuckBehavior(): void {
+        try {
+            // Strategy 1: Set new wander target
+            this.setWanderTarget();
+
+            // Strategy 2: If still in same position, try different approach
+            if (this._stuckPosition && this.zombie.position &&
+                Geometry.distance(this.zombie.position, this._stuckPosition) < 0.5) {
+
+                // Force state change to break current behavior
+                this.setState(ZombieAIState.Wandering);
+
+                // Set target further away
+                const angle = randomFloat(0, Math.PI * 2);
+                const distance = randomFloat(10, ZombieAIConstants.wanderRadius * 2);
+
+                this._targetPosition = Vec.add(
+                    this.zombie.position,
+                    Vec.fromPolar(angle, distance)
+                );
+            }
+        } catch (error) {
+            console.warn(`Error in performUnstuckBehavior:`, error);
         }
     }
 
