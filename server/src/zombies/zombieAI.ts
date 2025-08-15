@@ -155,7 +155,7 @@ export class ZombieAI {
 
     private findNearestPlayer(): Player | undefined {
         // Add comprehensive null/undefined checks
-        if (!this.zombie?.game?.livingPlayers || !this.zombie?.position) {
+        if (!this.zombie || !this.zombie.game || !this.zombie.game.livingPlayers || !this.zombie.position) {
             return undefined;
         }
 
@@ -192,7 +192,7 @@ export class ZombieAI {
 
     private canDetectPlayer(player: Player): boolean {
         // Comprehensive validation checks
-        if (!player?.position || !this.zombie?.position || player.dead || player.isZombie) {
+        if (!player || !player.position || !this.zombie || !this.zombie.position || player.dead || player.isZombie) {
             return false;
         }
 
@@ -255,7 +255,7 @@ export class ZombieAI {
 
     private reachedTarget(target: Vector): boolean {
         // Validate inputs
-        if (!target || !this.zombie?.position) {
+        if (!target || !this.zombie || !this.zombie.position) {
             return false;
         }
 
@@ -284,7 +284,7 @@ export class ZombieAI {
 
     private checkIfStuck(): void {
         // Validate zombie and game state
-        if (!this.zombie?.position || !this.zombie?.game?.now || !this._lastPosition) {
+        if (!this.zombie || !this.zombie.position || !this.zombie.game || !this.zombie.game.now || !this._lastPosition) {
             return;
         }
 
