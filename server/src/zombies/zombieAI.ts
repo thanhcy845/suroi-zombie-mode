@@ -48,6 +48,14 @@ export class ZombieAI {
     private _lodLevel = 0; // 0=High, 1=Medium, 2=Low, 3=Minimal
     private _lastLODUpdate = 0;
     private readonly _lodUpdateInterval = 1000; // Update LOD every 1 second
+
+    // State Transition Loop Prevention Properties
+    private readonly _stateTransitionCooldown = new Map<string, number>();
+    private readonly STATE_TRANSITION_DELAY = 500; // milliseconds
+    private readonly _stateChangeHistory: ZombieAIState[] = [];
+    private readonly MAX_HISTORY_LENGTH = 10;
+    private readonly CYCLE_DETECTION_WINDOW = 3;
+    private readonly MAX_SAME_STATE_IN_WINDOW = 2;
     private _distanceToNearestPlayer = Infinity;
 
     constructor(private readonly zombie: ZombiePlayer) {
@@ -143,14 +151,100 @@ export class ZombieAI {
         }
     }
 
+    /**
+     * Check if transition to new state is allowed based on cooldown and history
+     */
+    private canTransitionToState(newState: ZombieAIState): boolean {
+        // Skip validation if transitioning to same state
+        if (newState === this._currentState) {
+            return true;
+        }
+
+        const now = this.zombie.game?.now ?? Date.now();
+
+        // 1. Cooldown check
+        const transitionKey = `${this._currentState}->${newState}`;
+        const lastTransitionTime = this._stateTransitionCooldown.get(transitionKey) ?? 0;
+
+        if (now - lastTransitionTime < this.STATE_TRANSITION_DELAY) {
+            return false; // Still in cooldown period
+        }
+
+        // 2. Cycle detection check
+        if (this._stateChangeHistory.length >= this.CYCLE_DETECTION_WINDOW - 1) {
+            // Get the window that would exist after adding the new state
+            const windowStart = Math.max(0, this._stateChangeHistory.length - this.CYCLE_DETECTION_WINDOW + 1);
+            const futureWindow = this._stateChangeHistory.slice(windowStart).concat([newState]);
+            const sameStateCount = futureWindow.filter(state => state === newState).length;
+
+            // Block if adding this state would exceed the maximum allowed occurrences
+            if (sameStateCount >= this.MAX_SAME_STATE_IN_WINDOW) {
+                return false; // Too many recent transitions to same state
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Enhanced setState with transition loop prevention
+     */
     private setState(newState: ZombieAIState, target?: Player): void {
+        // Validate transition is allowed
+        if (!this.canTransitionToState(newState)) {
+            // Optional debug logging (can be disabled in production)
+            if (process.env.NODE_ENV === "development") {
+                console.debug(`[ZombieAI] Blocked transition ${this._currentState} -> ${newState}`);
+            }
+            return;
+        }
+
+        const now = this.zombie.game?.now ?? Date.now();
+
+        // Update cooldown tracking (only for actual state changes)
+        if (newState !== this._currentState) {
+            const transitionKey = `${this._currentState}->${newState}`;
+            this._stateTransitionCooldown.set(transitionKey, now);
+
+            // Update state history
+            this._stateChangeHistory.push(newState);
+            if (this._stateChangeHistory.length > this.MAX_HISTORY_LENGTH) {
+                this._stateChangeHistory.shift(); // Remove oldest entry
+            }
+
+            // Optional debug logging
+            if (process.env.NODE_ENV === "development") {
+                console.debug(`[ZombieAI] State transition: ${this._currentState} -> ${newState}`);
+            }
+        }
+
+        // Perform actual state transition (preserve existing logic)
         this._currentState = newState;
         this._target = target;
 
         if (target) {
             this._targetPosition = target.position;
-            this._lastTargetSwitch = this.zombie.game.now;
+            this._lastTargetSwitch = now;
         }
+    }
+
+    /**
+     * Utility method to clear transition history (for testing or reset scenarios)
+     */
+    private resetTransitionHistory(): void {
+        this._stateChangeHistory.length = 0;
+        this._stateTransitionCooldown.clear();
+    }
+
+    /**
+     * Get current state transition statistics (for debugging and testing)
+     */
+    private getTransitionStats(): { historyLength: number; cooldownCount: number; recentStates: ZombieAIState[] } {
+        return {
+            historyLength: this._stateChangeHistory.length,
+            cooldownCount: this._stateTransitionCooldown.size,
+            recentStates: [...this._stateChangeHistory.slice(-5)] // Last 5 states for debugging
+        };
     }
 
     private findNearestPlayer(): Player | undefined {
