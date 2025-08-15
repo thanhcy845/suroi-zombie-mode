@@ -155,7 +155,7 @@ export class ZombieAI {
 
     private findNearestPlayer(): Player | undefined {
         // Add comprehensive null/undefined checks
-        if (!this.zombie || !this.zombie.game || !this.zombie.game.livingPlayers || !this.zombie.position) {
+        if (!this.zombie?.game?.livingPlayers || !this.zombie.position) {
             return undefined;
         }
 
@@ -192,12 +192,12 @@ export class ZombieAI {
 
     private canDetectPlayer(player: Player): boolean {
         // Comprehensive validation checks
-        if (!player || !player.position || !this.zombie || !this.zombie.position || player.dead || player.isZombie) {
+        if (!player?.position || !this.zombie?.position || player.dead || player.isZombie) {
             return false;
         }
 
         // Validate zombie detection capabilities
-        if (!this.zombie.getDetectionRange || typeof this.zombie.getDetectionRange !== 'function') {
+        if (!this.zombie.getDetectionRange || typeof this.zombie.getDetectionRange !== "function") {
             return false;
         }
 
@@ -255,13 +255,14 @@ export class ZombieAI {
 
     private reachedTarget(target: Vector): boolean {
         // Validate inputs
-        if (!target || !this.zombie || !this.zombie.position) {
+        if (!target || !this.zombie?.position) {
             return false;
         }
 
         // Validate target coordinates
-        if (typeof target.x !== 'number' || typeof target.y !== 'number' ||
-            isNaN(target.x) || isNaN(target.y) || !isFinite(target.x) || !isFinite(target.y)) {
+        if (typeof target.x !== "number"
+            || typeof target.y !== "number"
+            || isNaN(target.x) || isNaN(target.y) || !isFinite(target.x) || !isFinite(target.y)) {
             return false;
         }
 
@@ -277,14 +278,14 @@ export class ZombieAI {
             const threshold = ZombieAIConstants.stuckThreshold || 1.0;
             return distance < threshold;
         } catch (error) {
-            console.warn(`Error in reachedTarget calculation:`, error);
+            console.warn("Error in reachedTarget calculation:", error);
             return false;
         }
     }
 
     private checkIfStuck(): void {
         // Validate zombie and game state
-        if (!this.zombie || !this.zombie.position || !this.zombie.game || !this.zombie.game.now || !this._lastPosition) {
+        if (!this.zombie?.position || !this.zombie.game?.now || !this._lastPosition) {
             return;
         }
 
@@ -293,10 +294,12 @@ export class ZombieAI {
             const now = this.zombie.game.now;
 
             // Validate positions
-            if (typeof currentPos.x !== 'number' || typeof currentPos.y !== 'number' ||
-                isNaN(currentPos.x) || isNaN(currentPos.y) ||
-                typeof this._lastPosition.x !== 'number' || typeof this._lastPosition.y !== 'number' ||
-                isNaN(this._lastPosition.x) || isNaN(this._lastPosition.y)) {
+            if (typeof currentPos.x !== "number"
+                || typeof currentPos.y !== "number"
+                || isNaN(currentPos.x) || isNaN(currentPos.y)
+                || typeof this._lastPosition.x !== "number"
+                || typeof this._lastPosition.y !== "number"
+                || isNaN(this._lastPosition.x) || isNaN(this._lastPosition.y)) {
                 return;
             }
 
@@ -342,9 +345,8 @@ export class ZombieAI {
             this.setWanderTarget();
 
             // Strategy 2: If still in same position, try different approach
-            if (this._stuckPosition && this.zombie.position &&
-                Geometry.distance(this.zombie.position, this._stuckPosition) < 0.5) {
-
+            if (this._stuckPosition && this.zombie.position
+                && Geometry.distance(this.zombie.position, this._stuckPosition) < 0.5) {
                 // Force state change to break current behavior
                 this.setState(ZombieAIState.Wandering);
 
@@ -358,7 +360,7 @@ export class ZombieAI {
                 );
             }
         } catch (error) {
-            console.warn(`Error in performUnstuckBehavior:`, error);
+            console.warn("Error in performUnstuckBehavior:", error);
         }
     }
 
