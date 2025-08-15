@@ -3,78 +3,73 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deactivate = exports.activate = void 0;
 const vscode = require("vscode");
 function activate(context) {
-    console.log('Suroi Zombie Development extension is now active!');
+    console.log("Suroi Zombie Development extension is now active!");
     // Register commands
-    const createZombieClass = vscode.commands.registerCommand('suroiZombie.createZombieClass', async () => {
+    const createZombieClass = vscode.commands.registerCommand("suroiZombie.createZombieClass", async() => {
         const zombieName = await vscode.window.showInputBox({
-            prompt: 'Enter zombie class name (e.g., FastRunner)',
-            placeHolder: 'ZombieName'
+            prompt: "Enter zombie class name (e.g., FastRunner)",
+            placeHolder: "ZombieName"
         });
-        if (!zombieName)
-            return;
+        if (!zombieName) { return; }
         const zombieType = await vscode.window.showInputBox({
-            prompt: 'Enter zombie type ID (e.g., fast_runner)',
-            placeHolder: 'zombie_type_id'
+            prompt: "Enter zombie type ID (e.g., fast_runner)",
+            placeHolder: "zombie_type_id"
         });
-        if (!zombieType)
-            return;
+        if (!zombieType) { return; }
         const template = generateZombieClassTemplate(zombieName, zombieType);
         insertAtCursor(template);
     });
-    const createZombieType = vscode.commands.registerCommand('suroiZombie.createZombieType', async () => {
+    const createZombieType = vscode.commands.registerCommand("suroiZombie.createZombieType", async() => {
         const typeName = await vscode.window.showInputBox({
-            prompt: 'Enter zombie type name',
-            placeHolder: 'Super Zombie'
+            prompt: "Enter zombie type name",
+            placeHolder: "Super Zombie"
         });
-        if (!typeName)
-            return;
+        if (!typeName) { return; }
         const typeId = await vscode.window.showInputBox({
-            prompt: 'Enter zombie type ID',
-            placeHolder: 'super_zombie'
+            prompt: "Enter zombie type ID",
+            placeHolder: "super_zombie"
         });
-        if (!typeId)
-            return;
+        if (!typeId) { return; }
         const template = generateZombieTypeTemplate(typeName, typeId);
         insertAtCursor(template);
     });
-    const createAIBehavior = vscode.commands.registerCommand('suroiZombie.createAIBehavior', async () => {
+    const createAIBehavior = vscode.commands.registerCommand("suroiZombie.createAIBehavior", async() => {
         const behaviorName = await vscode.window.showInputBox({
-            prompt: 'Enter AI behavior name',
-            placeHolder: 'Aggressive'
+            prompt: "Enter AI behavior name",
+            placeHolder: "Aggressive"
         });
-        if (!behaviorName)
-            return;
+        if (!behaviorName) { return; }
         const template = generateAIBehaviorTemplate(behaviorName);
         insertAtCursor(template);
     });
-    const setupProject = vscode.commands.registerCommand('suroiZombie.setupZombieProject', async () => {
-        vscode.window.showInformationMessage('Zombie development environment is ready! Use the zombie snippets to get started.');
+    const setupProject = vscode.commands.registerCommand("suroiZombie.setupZombieProject", async() => {
+        vscode.window.showInformationMessage("Zombie development environment is ready! Use the zombie snippets to get started.");
     });
     // Register completion provider
-    const completionProvider = vscode.languages.registerCompletionItemProvider(['typescript', 'javascript'], new ZombieCompletionProvider(), '.');
+    const completionProvider = vscode.languages.registerCompletionItemProvider(["typescript", "javascript"], new ZombieCompletionProvider(), ".");
     // Register hover provider
-    const hoverProvider = vscode.languages.registerHoverProvider(['typescript', 'javascript'], new ZombieHoverProvider());
+    const hoverProvider = vscode.languages.registerHoverProvider(["typescript", "javascript"], new ZombieHoverProvider());
     context.subscriptions.push(createZombieClass, createZombieType, createAIBehavior, setupProject, completionProvider, hoverProvider);
 }
 exports.activate = activate;
 class ZombieCompletionProvider {
     provideCompletionItems(document, position) {
         const linePrefix = document.lineAt(position).text.substr(0, position.character);
-        if (linePrefix.includes('ZombieTypes.')) {
+        if (linePrefix.includes("ZombieTypes.")) {
             return [
-                new vscode.CompletionItem('basic_zombie', vscode.CompletionItemKind.Constant),
-                new vscode.CompletionItem('fast_runner', vscode.CompletionItemKind.Constant),
-                new vscode.CompletionItem('tank_zombie', vscode.CompletionItemKind.Constant)
+                new vscode.CompletionItem("basic_zombie", vscode.CompletionItemKind.Constant),
+                new vscode.CompletionItem("fast_runner", vscode.CompletionItemKind.Constant),
+                new vscode.CompletionItem("tank_zombie", vscode.CompletionItemKind.Constant)
             ];
         }
-        if (linePrefix.includes('ZombieAIState.')) {
+        if (linePrefix.includes("ZombieAIState.")) {
             return [
-                new vscode.CompletionItem('Idle', vscode.CompletionItemKind.Enum),
-                new vscode.CompletionItem('Wandering', vscode.CompletionItemKind.Enum),
-                new vscode.CompletionItem('Hunting', vscode.CompletionItemKind.Enum),
-                new vscode.CompletionItem('Attacking', vscode.CompletionItemKind.Enum),
-                new vscode.CompletionItem('Fleeing', vscode.CompletionItemKind.Enum),
-                new vscode.CompletionItem('Grouping', vscode.CompletionItemKind.Enum)
+                new vscode.CompletionItem("Idle", vscode.CompletionItemKind.Enum),
+                new vscode.CompletionItem("Wandering", vscode.CompletionItemKind.Enum),
+                new vscode.CompletionItem("Hunting", vscode.CompletionItemKind.Enum),
+                new vscode.CompletionItem("Attacking", vscode.CompletionItemKind.Enum),
+                new vscode.CompletionItem("Fleeing", vscode.CompletionItemKind.Enum),
+                new vscode.CompletionItem("Grouping", vscode.CompletionItemKind.Enum)
             ];
         }
         return [];
@@ -85,12 +80,12 @@ class ZombieHoverProvider {
         const range = document.getWordRangeAtPosition(position);
         const word = document.getText(range);
         const zombieDocumentation = {
-            'ZombiePlayer': 'Base class for AI-controlled zombie players with pathfinding and combat behavior',
-            'ZombieManager': 'Manages zombie spawning, evolution, and lifecycle in the game',
-            'ZombieAI': 'AI system that controls zombie behavior, movement, and decision making',
-            'basic_zombie': 'Standard zombie type with balanced stats and pack behavior',
-            'fast_runner': 'Fast, agile zombie with high speed but lower health',
-            'tank_zombie': 'Heavy zombie with high health and damage but slower movement'
+            ZombiePlayer: "Base class for AI-controlled zombie players with pathfinding and combat behavior",
+            ZombieManager: "Manages zombie spawning, evolution, and lifecycle in the game",
+            ZombieAI: "AI system that controls zombie behavior, movement, and decision making",
+            basic_zombie: "Standard zombie type with balanced stats and pack behavior",
+            fast_runner: "Fast, agile zombie with high speed but lower health",
+            tank_zombie: "Heavy zombie with high health and damage but slower movement"
         };
         if (zombieDocumentation[word]) {
             return new vscode.Hover(zombieDocumentation[word]);
@@ -153,7 +148,7 @@ function generateAIBehaviorTemplate(name) {
 async function insertAtCursor(text) {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
-        vscode.window.showErrorMessage('No active editor');
+        vscode.window.showErrorMessage("No active editor");
         return;
     }
     await editor.edit(editBuilder => {
@@ -162,4 +157,4 @@ async function insertAtCursor(text) {
 }
 function deactivate() { }
 exports.deactivate = deactivate;
-//# sourceMappingURL=extension.js.map
+// # sourceMappingURL=extension.js.map

@@ -6,13 +6,13 @@ import { RectangleHitbox } from "@common/utils/hitbox";
 import { type Game } from "../game";
 import { type Player } from "../objects/player";
 import { ZombiePlayer } from "./zombiePlayer";
-import { ZombieTypes, ZombieSpawnWeights, EvolutionMultipliers, type ZombieTypeDefinition } from "./zombieTypes";
+import { ZombieTypes, ZombieSpawnWeights, EvolutionMultipliers, ZombieAIConstants, type ZombieTypeDefinition } from "./zombieTypes";
 
 export class ZombieManager {
-    private game: Game;
-    private zombies = new Set<ZombiePlayer>();
+    readonly game: Game;
+    readonly zombies = new Set<ZombiePlayer>();
     private evolutionLevel = 0;
-    private evolutionTimeouts: Array<NodeJS.Timeout> = [];
+    private evolutionTimeouts: NodeJS.Timeout[] = [];
 
     // Dynamic spawning configuration
     private readonly targetZombieCount = { min: 8, max: 12 }; // Target zombie population
@@ -27,15 +27,15 @@ export class ZombieManager {
     private readonly maxSpawnPerInterval = 2; // Max zombies to spawn per interval
 
     // Spawn rate scaling
-    private baseSpawnRate = 1.0;
+    readonly baseSpawnRate = 1.0;
     private spawnRateMultiplier = 1.0;
     private lastSpawnCheck = 0;
 
     // Chunk tracking
-    private activeChunks = new Map<string, { lastActivity: number, zombieCount: number }>();
+    readonly activeChunks = new Map<string, { lastActivity: number, zombieCount: number }>();
 
     // Statistics tracking
-    private stats = {
+    readonly stats = {
         totalSpawned: 0,
         totalKilled: 0,
         currentActive: 0,
@@ -49,15 +49,44 @@ export class ZombieManager {
         6 * 60 * 1000,  // 6 minutes
         9 * 60 * 1000   // 9 minutes
     ];
-    
+
     constructor(game: Game) {
         this.game = game;
-        
-        // Add zombies property to game for easy access
-        (this.game as any).zombies = this.zombies;
-        (this.game as any).zombieManager = this;
+
+        // Validate LOD configuration at startup
+        this.validateLODConfiguration();
+
+        // Add zombies property to game for easy access without using `any`
+        const gameWithZombies = this.game as unknown as { zombies: Set<ZombiePlayer>, zombieManager: ZombieManager };
+        gameWithZombies.zombies = this.zombies;
+        gameWithZombies.zombieManager = this;
     }
-    
+
+    /**
+     * Validate LOD configuration parameters at startup
+     */
+    private validateLODConfiguration(): void {
+        const thresholds = ZombieAIConstants.lodDistanceThresholds;
+        const intervals = ZombieAIConstants.lodUpdateIntervals;
+
+        // Validate thresholds are strictly increasing
+        if (thresholds.high >= thresholds.medium
+            || thresholds.medium >= thresholds.low
+            || thresholds.low >= thresholds.minimal) {
+            throw new Error("LOD distance thresholds must be strictly increasing: high < medium < low < minimal");
+        }
+
+        // Validate intervals are positive
+        if (intervals.high <= 0 || intervals.medium <= 0 || intervals.low <= 0 || intervals.minimal <= 0) {
+            throw new Error("LOD update intervals must be positive values");
+        }
+
+        // Log effective configuration
+        this.game.log(`LOD Configuration validated:
+- Distance Thresholds: High=${thresholds.high}, Medium=${thresholds.medium}, Low=${thresholds.low}, Minimal=${thresholds.minimal}
+- Update Intervals: High=${intervals.high}ms, Medium=${intervals.medium}ms, Low=${intervals.low}ms, Minimal=${intervals.minimal}ms`);
+    }
+
     /**
      * Initialize dynamic zombie spawning system
      */
@@ -133,7 +162,7 @@ export class ZombieManager {
             this.game.log(`Warning: Zombie update took ${updateTime}ms (zombies: ${this.zombies.size})`);
         }
     }
-    
+
     /**
      * Spawn a single zombie at a random location
      */
@@ -151,16 +180,16 @@ export class ZombieManager {
 
             // Transaction-like spawning - all or nothing
             const addOperations = [
-                () => (this.game.livingPlayers as any).add(zombie),
-                () => (this.game.connectedPlayers as any).add(zombie),
-                () => (this.game.spectatablePlayers as any).push(zombie),
-                () => (this.game.newPlayers as any).push(zombie),
+                () => this.game.livingPlayers.add(zombie),
+                () => this.game.connectedPlayers.add(zombie),
+                () => this.game.spectatablePlayers.push(zombie),
+                () => this.game.newPlayers.push(zombie),
                 () => this.zombies.add(zombie),
                 () => this.game.grid.addObject(zombie)
             ];
 
             // Execute all operations
-            const completedOperations: (() => void)[] = [];
+            const completedOperations: Array<() => void> = [];
             for (const operation of addOperations) {
                 try {
                     operation();
@@ -188,33 +217,34 @@ export class ZombieManager {
 
             this.game.log(`Spawned ${zombieType.name} zombie at ${spawnPosition.x}, ${spawnPosition.y}`);
             return zombie;
-
         } catch (error) {
-            this.game.log(`Error spawning zombie: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this.game.log(`Error spawning zombie: ${errorMessage}`);
             return undefined;
         }
     }
 
-    private rollbackZombieSpawn(zombie: ZombiePlayer, completedOperations: (() => void)[]): void {
+    private rollbackZombieSpawn(zombie: ZombiePlayer, completedOperations: Array<() => void>): void {
         // Clean up any partial state
         try {
-            (this.game.livingPlayers as any).delete(zombie);
-            (this.game.connectedPlayers as any).delete(zombie);
+            this.game.livingPlayers.delete(zombie);
+            this.game.connectedPlayers.delete(zombie);
             this.zombies.delete(zombie);
 
-            const specIndex = (this.game.spectatablePlayers as any).indexOf(zombie);
+            const specIndex = this.game.spectatablePlayers.indexOf(zombie);
             if (specIndex !== -1) {
-                (this.game.spectatablePlayers as any).splice(specIndex, 1);
+                this.game.spectatablePlayers.splice(specIndex, 1);
             }
 
-            const newIndex = (this.game.newPlayers as any).indexOf(zombie);
+            const newIndex = this.game.newPlayers.indexOf(zombie);
             if (newIndex !== -1) {
-                (this.game.newPlayers as any).splice(newIndex, 1);
+                this.game.newPlayers.splice(newIndex, 1);
             }
 
             this.game.removeObject(zombie);
         } catch (cleanupError) {
-            this.game.log(`Error during zombie spawn rollback: ${cleanupError}`);
+            const errorMessage = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+            this.game.log(`Error during zombie spawn rollback: ${errorMessage}`);
         }
     }
 
@@ -374,14 +404,12 @@ export class ZombieManager {
     private getHumanPlayers(): Player[] {
         const humanPlayers: Player[] = [];
         for (const player of this.game.livingPlayers) {
-            if (!(player as any).isZombie) {
+            if (!player.isZombie) {
                 humanPlayers.push(player);
             }
         }
         return humanPlayers;
     }
-
-
 
     /**
      * Select zombie type based on game phase and weights
@@ -404,24 +432,24 @@ export class ZombieManager {
         // Fallback to basic zombie
         return ZombieTypes.fromString("basic_zombie");
     }
-    
+
     /**
      * Determine current game phase based on time elapsed
      */
     private getGamePhase(): keyof typeof ZombieSpawnWeights {
         const elapsed = this.game.now - this.game.startedTime;
-        
+
         if (elapsed < 5 * 60 * 1000) return "early";   // First 5 minutes
         if (elapsed < 10 * 60 * 1000) return "mid";    // 5-10 minutes
         return "late";                                  // After 10 minutes
     }
-    
+
     /**
      * Find a safe spawn position for a zombie
      */
     private findSpawnPosition(): Vector | undefined {
         const maxAttempts = 50;
-        
+
         for (let i = 0; i < maxAttempts; i++) {
             // Try spawning near the edge of the safe zone
             const gasRadius = this.game.gas?.currentRadius ?? this.game.map.width * 0.4;
@@ -429,20 +457,20 @@ export class ZombieManager {
             const spawnRadius = gasRadius * 0.8; // Spawn within 80% of gas radius
 
             const position = randomPointInsideCircle(gasPosition, spawnRadius);
-            
+
             // Check if position is valid (not in buildings, obstacles, etc.)
             if (this.isValidSpawnPosition(position)) {
                 return position;
             }
         }
-        
+
         // Fallback: spawn at random position near center
         return {
             x: randomFloat(-100, 100),
             y: randomFloat(-100, 100)
         };
     }
-    
+
     /**
      * Check if a position is valid for zombie spawning
      */
@@ -457,7 +485,7 @@ export class ZombieManager {
 
         // Check if too close to human players
         for (const player of this.game.livingPlayers) {
-            if ((player as any).isZombie) continue;
+            if (player.isZombie) continue;
 
             const distance = Geometry.distance(position, player.position);
             if (distance < 20) return false;
@@ -476,35 +504,35 @@ export class ZombieManager {
 
         return true;
     }
-    
+
     /**
      * Schedule zombie evolution events
      */
     private scheduleEvolutions(): void {
-        for (let i = 0; i < this.evolutionIntervals.length; i++) {
+        for (const interval of this.evolutionIntervals) {
             const timeout = setTimeout(() => {
                 this.evolveAllZombies();
-            }, this.evolutionIntervals[i]);
-            
+            }, interval);
+
             this.evolutionTimeouts.push(timeout);
         }
     }
-    
+
     /**
      * Evolve all zombies to the next level
      */
     private evolveAllZombies(): void {
         this.evolutionLevel++;
         const multiplier = this.calculateEvolutionMultiplier();
-        
+
         this.game.log(`Zombie evolution level ${this.evolutionLevel} - multiplier: ${multiplier.toFixed(2)}`);
-        
+
         for (const zombie of this.zombies) {
             if (!zombie.dead) {
                 zombie.evolve(multiplier);
             }
         }
-        
+
         // Spawn additional zombies on evolution
         if (this.evolutionLevel <= 2) {
             const additionalZombies = Math.floor(this.getHumanPlayerCount() * 0.5);
@@ -513,7 +541,7 @@ export class ZombieManager {
             }
         }
     }
-    
+
     /**
      * Calculate evolution multiplier based on current level
      */
@@ -521,18 +549,18 @@ export class ZombieManager {
         const level = Math.min(this.evolutionLevel, EvolutionMultipliers.health.length - 1);
         return EvolutionMultipliers.health[level];
     }
-    
+
     /**
      * Get count of human (non-zombie) players
      */
     private getHumanPlayerCount(): number {
         let count = 0;
         for (const player of this.game.livingPlayers) {
-            if (!(player as any).isZombie) count++;
+            if (!player.isZombie) count++;
         }
         return count;
     }
-    
+
     /**
      * Remove a zombie from tracking (public method for external calls)
      */
@@ -551,27 +579,27 @@ export class ZombieManager {
         if (!this.zombies.has(zombie)) return;
 
         this.zombies.delete(zombie);
-        (this.game.livingPlayers as any).delete(zombie);
-        (this.game.connectedPlayers as any).delete(zombie);
+        this.game.livingPlayers.delete(zombie);
+        this.game.connectedPlayers.delete(zombie);
 
         // Remove from spectatable players array
-        const specIndex = (this.game.spectatablePlayers as any).indexOf(zombie);
+        const specIndex = this.game.spectatablePlayers.indexOf(zombie);
         if (specIndex !== -1) {
-            (this.game.spectatablePlayers as any).splice(specIndex, 1);
+            this.game.spectatablePlayers.splice(specIndex, 1);
         }
 
         this.game.removeObject(zombie);
         this.game.aliveCountDirty = true;
     }
-    
+
     /**
      * Get detailed zombie statistics
      */
     getDetailedStats(): {
-        totalZombies: number;
-        aliveZombies: number;
-        evolutionLevel: number;
-        zombiesByType: Record<string, number>;
+        totalZombies: number
+        aliveZombies: number
+        evolutionLevel: number
+        zombiesByType: Record<string, number>
     } {
         const zombiesByType: Record<string, number> = {};
         let aliveCount = 0;
@@ -590,7 +618,7 @@ export class ZombieManager {
             zombiesByType
         };
     }
-    
+
     /**
      * Clean up when game ends
      */
@@ -659,15 +687,12 @@ export class ZombieManager {
         const distribution = { high: 0, medium: 0, low: 0, minimal: 0 };
 
         for (const zombie of this.zombies) {
-            const ai = (zombie as any).ai;
-            if (ai && typeof ai.getLODLevel === 'function') {
-                const lodLevel = ai.getLODLevel();
-                switch (lodLevel) {
-                    case 0: distribution.high++; break;
-                    case 1: distribution.medium++; break;
-                    case 2: distribution.low++; break;
-                    case 3: distribution.minimal++; break;
-                }
+            const lodLevel = zombie.getLODLevel();
+            switch (lodLevel) {
+                case 0: distribution.high++; break;
+                case 1: distribution.medium++; break;
+                case 2: distribution.low++; break;
+                case 3: distribution.minimal++; break;
             }
         }
 
@@ -678,9 +703,9 @@ export class ZombieManager {
      * Get performance metrics for LOD system
      */
     getLODPerformanceMetrics(): {
-        totalZombies: number,
-        lodDistribution: { high: number, medium: number, low: number, minimal: number },
-        averageDistance: number,
+        totalZombies: number
+        lodDistribution: { high: number, medium: number, low: number, minimal: number }
+        averageDistance: number
         performanceScore: number
     } {
         const totalZombies = this.zombies.size;
@@ -690,13 +715,10 @@ export class ZombieManager {
         let zombieCount = 0;
 
         for (const zombie of this.zombies) {
-            const ai = (zombie as any).ai;
-            if (ai && typeof ai.getDistanceToNearestPlayer === 'function') {
-                const distance = ai.getDistanceToNearestPlayer();
-                if (distance !== Infinity) {
-                    totalDistance += distance;
-                    zombieCount++;
-                }
+            const distance = zombie.getDistanceToNearestPlayer();
+            if (distance !== Infinity) {
+                totalDistance += distance;
+                zombieCount++;
             }
         }
 

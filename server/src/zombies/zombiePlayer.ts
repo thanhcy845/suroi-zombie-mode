@@ -1,14 +1,10 @@
-import { GameConstants, ObjectCategory, PlayerActions } from "@common/constants";
-import { Guns } from "@common/definitions/items/guns";
 import { Melees } from "@common/definitions/items/melees";
 import { Skins } from "@common/definitions/items/skins";
-import { PacketType } from "@common/packets/packet";
-import { CircleHitbox } from "@common/utils/hitbox";
-import { Angle, Geometry } from "@common/utils/math";
-import { pickRandomInArray } from "@common/utils/random";
+import { Geometry } from "@common/utils/math";
 import { Vec, type Vector } from "@common/utils/vector";
 import { type Game } from "../game";
 import { Player } from "../objects/player";
+import { type DamageParams } from "../objects/gameObject";
 import { type ZombieTypeDefinition } from "./zombieTypes";
 import { ZombieAI } from "./zombieAI";
 
@@ -16,17 +12,17 @@ export class ZombiePlayer extends Player {
     readonly isZombie = true;
     readonly zombieType: ZombieTypeDefinition;
     readonly ai: ZombieAI;
-    
-    private _baseStats: {
-        health: number;
-        speed: number;
-        damage: number;
+
+    private readonly _baseStats: {
+        health: number
+        speed: number
+        damage: number
     };
-    
+
     private _evolutionMultiplier = 1;
     private _lastAttackTime = 0;
-    private _attackCooldown = 1000; // 1 second between attacks
-    
+    private readonly _attackCooldown = 1000; // 1 second between attacks
+
     constructor(game: Game, zombieType: ZombieTypeDefinition, position: Vector) {
         // Create zombie without socket (AI controlled)
         super(game, undefined, position);
@@ -64,37 +60,37 @@ export class ZombiePlayer extends Player {
         this.setDirty();
 
         // Debug logging
-        game.log(`Zombie ${this.name} created with skin: ${this.loadout.skin?.idString || 'none'}`);
+        game.log(`Zombie ${this.name} created with skin: ${this.loadout.skin?.idString || "none"}`);
     }
-    
+
     override update(): void {
         if (this.dead) return;
-        
+
         // Update AI behavior
         this.ai.update();
-        
+
         // Apply AI movement and actions
         this.processAIInputs();
-        
+
         // Call parent update
         super.update();
     }
-    
+
     private processAIInputs(): void {
         const aiState = this.ai.getCurrentState();
 
         // Validate AI state before applying
-        if (!aiState || !aiState.movement) {
+        if (!aiState?.movement) {
             this.game.log(`Invalid AI state for zombie ${this.name}`);
             return;
         }
 
         // Validate movement inputs
         const movement = aiState.movement;
-        this.movement.up = Boolean(movement.up);
-        this.movement.down = Boolean(movement.down);
-        this.movement.left = Boolean(movement.left);
-        this.movement.right = Boolean(movement.right);
+        this.movement.up = movement.up;
+        this.movement.down = movement.down;
+        this.movement.left = movement.left;
+        this.movement.right = movement.right;
 
         // Validate target position
         if (aiState.target) {
@@ -112,8 +108,8 @@ export class ZombiePlayer extends Player {
 
         // Validate attack state
         if (aiState.shouldAttack !== undefined && this.canAttack()) {
-            this.attacking = Boolean(aiState.shouldAttack);
-            this.startedAttacking = Boolean(aiState.shouldAttack);
+            this.attacking = aiState.shouldAttack;
+            this.startedAttacking = aiState.shouldAttack;
             if (aiState.shouldAttack) {
                 this._lastAttackTime = this.game.now;
             }
@@ -124,78 +120,79 @@ export class ZombiePlayer extends Player {
 
         this.stoppedAttacking = false;
     }
-    
+
     private canAttack(): boolean {
         return this.game.now - this._lastAttackTime >= this._attackCooldown;
     }
-    
+
     evolve(multiplier: number): void {
         this._evolutionMultiplier = multiplier;
-        
+
         // Update stats based on evolution
         const newMaxHealth = Math.floor(this._baseStats.health * multiplier);
         const healthRatio = this.health / this.maxHealth;
-        
+
         this.maxHealth = newMaxHealth;
         this.health = Math.floor(newMaxHealth * healthRatio);
-        
+
         // Update other stats - speed is handled by movement multiplier
         // this.speed = this._baseStats.speed * multiplier;
-        
+
         this.setDirty();
-        
+
         // Notify AI of evolution
         this.ai.onEvolution(multiplier);
     }
-    
+
     getEvolutionMultiplier(): number {
         return this._evolutionMultiplier;
     }
-    
+
     getZombieDamage(): number {
         return Math.floor(this._baseStats.damage * this._evolutionMultiplier);
     }
-    
+
     getDetectionRange(): number {
         return this.zombieType.detectionRange * this._evolutionMultiplier;
     }
-    
+
     getAttackRange(): number {
         return this.zombieType.attackRange;
     }
-    
+
     // Override to prevent normal player behaviors
     override processInputs(): void {
         // Zombies don't process normal input packets
     }
-    
+
     override disconnect(): void {
         // Remove from zombie tracking
         this.game.zombies?.delete(this);
         super.disconnect();
     }
-    
+
     // Override damage to apply zombie-specific logic
-    override damage(params: any): void {
+    override damage(params: DamageParams): void {
         super.damage(params);
-        
+
         // Notify AI of taking damage
-        if (params.source?.isPlayer && !params.source.isZombie) {
-            this.ai.onTakeDamage(params.source);
+        const src = params.source;
+        if (src && typeof src === "object" && "isPlayer" in src && (src as Player).isPlayer && !(src as Player).isZombie) {
+            this.ai.onTakeDamage(src as Player);
         }
     }
-    
+
     // Custom method for zombie attacks
     zombieAttack(target: Player): void {
         if (!this.canAttack() || this.dead) return;
-        
+
         const distance = Geometry.distance(this.position, target.position);
         if (distance > this.getAttackRange()) return;
-        
+
         // Deal damage to target
         target.damage({
             amount: this.getZombieDamage(),
-            source: this as any,
+            source: this,
             weaponUsed: this.activeItem
         });
 
@@ -203,5 +200,19 @@ export class ZombiePlayer extends Player {
 
         // Add visual/audio effects (if method exists)
         // this.game.addEmote(this, "skull");
+    }
+
+    /**
+     * Get current LOD level for monitoring and metrics
+     */
+    getLODLevel(): number {
+        return this.ai.getLODLevel();
+    }
+
+    /**
+     * Get distance to nearest player for monitoring
+     */
+    getDistanceToNearestPlayer(): number {
+        return this.ai.getDistanceToNearestPlayer();
     }
 }

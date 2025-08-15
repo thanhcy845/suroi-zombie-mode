@@ -857,19 +857,31 @@ export class Game implements GameData {
      * Schedule zombie spawning for solo mode
      */
     private scheduleZombieSpawning(): void {
-        this.log("Scheduling zombie spawning check for solo mode");
+        this.log("🔄 Scheduling zombie spawning check for solo mode");
 
         // Wait 15 seconds for additional players to join
         this._zombieSpawnTimeout = this.addTimeout(() => {
             const humanPlayerCount = this.getHumanPlayerCount();
 
-            this.log(`Zombie spawn check: TeamMode=${this.teamMode}, HumanPlayers=${humanPlayerCount}, Started=${this._started}`);
+            this.log(`🔍 Zombie spawn check: TeamMode=${this.teamMode}, HumanPlayers=${humanPlayerCount}, Started=${this._started}`);
+            this.log(`🔍 Connected players: ${this.connectedPlayers.size}, Living players: ${this.livingPlayers.size}`);
+
+            // Debug: List all players
+            for (const player of this.connectedPlayers.values()) {
+                this.log(`🔍 Player: ${player.name}, ID: ${player.id}, Dead: ${player.dead}, Disconnected: ${player.disconnected}`);
+            }
 
             // Only spawn zombies if still in solo mode and not enough players
             if (this.teamMode === TeamMode.Solo && humanPlayerCount === 1) {
                 this._zombieModeEnabled = true;
                 this.log(`✅ Enabling zombie mode - spawning zombies for ${humanPlayerCount} human player(s)`);
                 this.zombieManager.spawnZombiesForMatch(humanPlayerCount);
+
+                // Debug: Check if zombies were actually spawned
+                this.log(`🧟 Zombie count after spawning: ${this.zombies.size}`);
+                for (const zombie of this.zombies.values()) {
+                    this.log(`🧟 Zombie: ${zombie.name}, Position: (${zombie.position.x.toFixed(1)}, ${zombie.position.y.toFixed(1)})`);
+                }
             } else {
                 this.log(`❌ Zombie mode not activated: TeamMode=${this.teamMode}, HumanPlayers=${humanPlayerCount}`);
             }
@@ -882,7 +894,7 @@ export class Game implements GameData {
     private getHumanPlayerCount(): number {
         let count = 0;
         for (const player of this.livingPlayers) {
-            if (!(player as any).isZombie) count++;
+            if (!player.isZombie) count++;
         }
         return count;
     }

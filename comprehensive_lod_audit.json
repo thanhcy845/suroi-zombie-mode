@@ -1,0 +1,12 @@
+{
+  "timestamp": "2025-08-14T20:23:27.413948",
+  "total_errors": 8,
+  "production_readiness": 4.5,
+  "verdict": "\u274c NOT READY - Major issues prevent deployment",
+  "lod_files_analyzed": 7,
+  "critical_issues": 3,
+  "performance_claims_valid": false,
+  "build_status": "FAILS",
+  "type_safety_score": 3.0,
+  "test_reliability_score": 2.0
+}

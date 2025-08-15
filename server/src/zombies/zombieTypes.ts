@@ -1,15 +1,15 @@
 export interface ZombieTypeDefinition {
-    readonly idString: string;
-    readonly name: string;
-    readonly health: number;
-    readonly speed: number;
-    readonly damage: number;
-    readonly attackRange: number;
-    readonly detectionRange: number;
-    readonly skin: string;
-    readonly evolutionLevel: number;
-    readonly aggressionLevel: number; // 0-1, affects AI behavior
-    readonly packBehavior: boolean; // Whether this zombie type groups with others
+    readonly idString: string
+    readonly name: string
+    readonly health: number
+    readonly speed: number
+    readonly damage: number
+    readonly attackRange: number
+    readonly detectionRange: number
+    readonly skin: string
+    readonly evolutionLevel: number
+    readonly aggressionLevel: number // 0-1, affects AI behavior
+    readonly packBehavior: boolean // Whether this zombie type groups with others
 }
 
 // Simple zombie type registry
@@ -84,7 +84,7 @@ export const ZombieTypes = {
         }
 
         // Fallback to basic zombie
-        return this.fromString('basic_zombie');
+        return this.fromString("basic_zombie");
     }
 };
 
@@ -139,10 +139,10 @@ export const ZombieAIConstants = {
     // LOD (Level of Detail) System Constants
     lodUpdateInterval: 1000, // ms - how often to recalculate LOD level
     lodDistanceThresholds: {
-        high: 25,    // 0-25 units: Full AI processing
-        medium: 50,  // 25-50 units: Reduced pathfinding frequency
-        low: 75,     // 50-75 units: Basic AI only
-        minimal: 100 // 75+ units: Minimal processing
+        high: 10,    // 0-10 units: Full AI processing (reduced from 15)
+        medium: 20,  // 10-20 units: Reduced pathfinding frequency (reduced from 35)
+        low: 35,     // 20-35 units: Basic AI only (reduced from 60)
+        minimal: 50  // 35+ units: Minimal processing (reduced from 80)
     },
     lodUpdateIntervals: {
         high: 500,    // Full pathfinding every 500ms

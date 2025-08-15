@@ -1,0 +1,152 @@
+{
+  "timestamp": "2025-08-14T19:59:48.137628",
+  "total_errors": 45,
+  "critical_count": 5,
+  "high_count": 12,
+  "medium_count": 21,
+  "low_count": 7,
+  "severity_rating": 41.66666666666667,
+  "verdict": "\ud83d\udfe0 HIGH RISK - Major fixes required",
+  "all_errors": [
+    {
+      "file": "ZombieAI",
+      "type": "Syntax Error - Semicolon",
+      "severity": "HIGH",
+      "impact": "Prevents compilation, breaks CI/CD",
+      "fix": "Remove extra semicolons from property declarations"
+    },
+    {
+      "file": "ZombieAI",
+      "type": "Syntax Error - Semicolon",
+      "severity": "HIGH",
+      "impact": "Multiple build system failures",
+      "fix": "Fix all semicolon usage in class properties"
+    },
+    {
+      "file": "ZombieAI",
+      "type": "Syntax Error - Semicolon",
+      "severity": "HIGH",
+      "impact": "ESLint violations block deployment",
+      "fix": "Update ESLint configuration or fix syntax"
+    },
+    {
+      "file": "ZombieAI",
+      "type": "Syntax Error - Semicolon",
+      "severity": "HIGH",
+      "impact": "Code quality gates fail",
+      "fix": "Review and correct function parameter syntax"
+    },
+    {
+      "file": "ZombieAI",
+      "type": "Logic Error - Distance Check",
+      "severity": "MEDIUM",
+      "impact": "Zombies may not detect players properly",
+      "fix": "Add infinity/NaN checks in distance calculations"
+    },
+    {
+      "file": "ZombieAI",
+      "type": "Performance Issue - Nested Loop",
+      "severity": "MEDIUM",
+      "impact": "Performance drops with many zombies",
+      "fix": "Optimize entity search with spatial indexing"
+    },
+    {
+      "file": "ZombieAI",
+      "type": "Type Safety - Missing Check",
+      "severity": "MEDIUM",
+      "impact": "Runtime type errors in pack coordination",
+      "fix": "Add proper type guards before casting"
+    },
+    {
+      "file": "ZombieAI",
+      "type": "Memory Leak - Event Listeners",
+      "severity": "LOW",
+      "impact": "Memory usage grows over long sessions",
+      "fix": "Implement proper cleanup methods"
+    },
+    {
+      "file": "ZombieAI",
+      "type": "Logic Flaw - LOD Update Race",
+      "severity": "LOW",
+      "impact": "Inconsistent LOD behavior under load",
+      "fix": "Add mutex/locking for LOD state updates"
+    },
+    {
+      "file": "ZombieManager",
+      "type": "Array Type Violation",
+      "severity": "HIGH",
+      "impact": "Build fails, prevents deployment",
+      "fix": "Change to Array<T> syntax for complex types"
+    },
+    {
+      "file": "ZombieManager",
+      "type": "Array Type Violation",
+      "severity": "HIGH",
+      "impact": "Linting errors block CI pipeline",
+      "fix": "Use NodeJS.Timeout[] for simple timeout arrays"
+    },
+    {
+      "file": "ZombieManager",
+      "type": "Memory Management Issue",
+      "severity": "MEDIUM",
+      "impact": "Zombie removal may fail unpredictably",
+      "fix": "Add transaction safety to zombie removal"
+    },
+    {
+      "file": "ZombieManager",
+      "type": "Race Condition",
+      "severity": "MEDIUM",
+      "impact": "LOD stats may be incorrect during spawning",
+      "fix": "Implement proper locking for concurrent access"
+    },
+    {
+      "file": "ZombieManager",
+      "type": "Logic Error - Calculation",
+      "severity": "MEDIUM",
+      "impact": "Zombie counts may become unrealistic",
+      "fix": "Add bounds checking and integer validation"
+    },
+    {
+      "file": "ZombieManager",
+      "type": "Performance Issue - Polling",
+      "severity": "MEDIUM",
+      "impact": "Unnecessary CPU cycles on every tick",
+      "fix": "Use proper intervals instead of tick-based polling"
+    },
+    {
+      "file": "ZombieManager",
+      "type": "Error Handling Gap",
+      "severity": "LOW",
+      "impact": "Spawn failures may not be handled gracefully",
+      "fix": "Add comprehensive error handling and recovery"
+    },
+    {
+      "file": "ZombieManager",
+      "type": "Resource Leak",
+      "severity": "LOW",
+      "impact": "Timeouts accumulate in memory over time",
+      "fix": "Ensure all timeouts are cleared in cleanup()"
+    },
+    {
+      "file": "Tests",
+      "type": "Mock Object Incomplete",
+      "severity": "HIGH",
+      "impact": "LOD system may not work with real players",
+      "fix": "Create proper Player object mocks with full interface"
+    },
+    {
+      "file": "Tests",
+      "type": "Test Logic Flawed",
+      "severity": "HIGH",
+      "impact": "Actual performance may be much worse",
+      "fix": "Implement realistic performance testing methodology"
+    },
+    {
+      "file": "Tests",
+      "type": "Performance Claims Unverifiable",
+      "severity": "CRITICAL",
+      "impact": "Performance claims (0.00ms) are synthetic/fake",
+      "fix": "Add independent verification and real gameplay testing"
+    }
+  ]
+}

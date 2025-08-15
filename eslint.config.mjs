@@ -13,8 +13,7 @@ export default tseslint.config(
         indent: 4,
         semi: true,
         commaDangle: "never"
-    }),
-    {
+    }), {
         languageOptions: {
             parserOptions: {
                 project: "tsconfig.eslint.json",
@@ -149,13 +148,22 @@ export default tseslint.config(
 
             // #endregion
         }
-    },
-    {
+    }, {
         ignores: [
             "common/dist/**",
             "client/dist/**",
             "server/dist/**",
-            "tests/dist/**"
+            "tests/dist/**",
+            "**/*test*.js",
+            "**/*test*.cjs",
+            "**/test-*.js",
+            "**/test-*.cjs",
+            "**/zombie-*.js",
+            "**/comprehensive-*.js",
+            "**/debug-*.js"
         ]
+    }, {
+        files: ["**/*.js", "**/*.cjs"],
+        ...tseslint.configs.disableTypeChecked
     }
 );

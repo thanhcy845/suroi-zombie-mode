@@ -586,7 +586,7 @@ class UIManagerClass {
         let zombieModeActive = false;
 
         for (const player of Game.objects.getCategory(ObjectCategory.Player)) {
-            if ((player as Player).isZombie) {
+            if ((player).isZombie) {
                 zombieCount++;
                 zombieModeActive = true;
             }

@@ -2,7 +2,6 @@ import { Geometry } from "@common/utils/math";
 import { pickRandomInArray, randomFloat } from "@common/utils/random";
 import { Vec, type Vector } from "@common/utils/vector";
 import { RectangleHitbox } from "@common/utils/hitbox";
-import { type Game } from "../game";
 import { type Player } from "../objects/player";
 import { type ZombiePlayer } from "./zombiePlayer";
 import { ZombieAIConstants } from "./zombieTypes";
@@ -17,17 +16,17 @@ export enum ZombieAIState {
 }
 
 export interface AIMovement {
-    up: boolean;
-    down: boolean;
-    left: boolean;
-    right: boolean;
+    up: boolean
+    down: boolean
+    left: boolean
+    right: boolean
 }
 
 export interface AIState {
-    movement: AIMovement;
-    target?: Vector;
-    shouldAttack: boolean;
-    currentState: ZombieAIState;
+    movement: AIMovement
+    target?: Vector
+    shouldAttack: boolean
+    currentState: ZombieAIState
 }
 
 export class ZombieAI {
@@ -41,20 +40,20 @@ export class ZombieAI {
     private _stuckPosition?: Vector;
     private _stuckTime = 0;
     private _circlingStartTime = 0;
-    private _circlingTimeout = 5000; // 5 seconds max circling
+    private readonly _circlingTimeout = 5000; // 5 seconds max circling
     private _aggroUntil = 0;
     private _lastPosition: Vector;
 
     // LOD (Level of Detail) System Properties
     private _lodLevel = 0; // 0=High, 1=Medium, 2=Low, 3=Minimal
     private _lastLODUpdate = 0;
-    private _lodUpdateInterval = 1000; // Update LOD every 1 second
+    private readonly _lodUpdateInterval = 1000; // Update LOD every 1 second
     private _distanceToNearestPlayer = Infinity;
 
-    constructor(private zombie: ZombiePlayer) {
+    constructor(private readonly zombie: ZombiePlayer) {
         this._lastPosition = Vec.clone(zombie.position);
     }
-    
+
     update(): void {
         const now = this.zombie.game.now;
 
@@ -82,11 +81,11 @@ export class ZombieAI {
         // Update last position for stuck detection
         this._lastPosition = Vec.clone(this.zombie.position);
     }
-    
+
     private updateState(): void {
         const nearestPlayer = this.findNearestPlayer();
         const isAggro = this.zombie.game.now < this._aggroUntil;
-        
+
         // State transitions
         switch (this._currentState) {
             case ZombieAIState.Idle:
@@ -98,7 +97,7 @@ export class ZombieAI {
                     this.setState(ZombieAIState.Wandering);
                 }
                 break;
-                
+
             case ZombieAIState.Wandering:
                 if (nearestPlayer && this.canDetectPlayer(nearestPlayer)) {
                     this.setState(ZombieAIState.Hunting, nearestPlayer);
@@ -106,7 +105,7 @@ export class ZombieAI {
                     this.setWanderTarget();
                 }
                 break;
-                
+
             case ZombieAIState.Hunting:
                 if (!nearestPlayer || !this.canDetectPlayer(nearestPlayer)) {
                     this.setState(isAggro ? ZombieAIState.Wandering : ZombieAIState.Idle);
@@ -117,7 +116,7 @@ export class ZombieAI {
                     this._targetPosition = nearestPlayer.position;
                 }
                 break;
-                
+
             case ZombieAIState.Attacking:
                 if (!nearestPlayer || !this.isInAttackRange(nearestPlayer)) {
                     this.setState(ZombieAIState.Hunting, nearestPlayer);
@@ -127,13 +126,13 @@ export class ZombieAI {
                     this._targetPosition = this.getTacticalAttackPosition(nearestPlayer);
                 }
                 break;
-                
+
             case ZombieAIState.Fleeing:
                 if (this.zombie.health / this.zombie.maxHealth > ZombieAIConstants.fleeHealthThreshold) {
                     this.setState(ZombieAIState.Idle);
                 }
                 break;
-                
+
             case ZombieAIState.Grouping:
                 if (nearestPlayer && this.canDetectPlayer(nearestPlayer)) {
                     this.setState(ZombieAIState.Hunting, nearestPlayer);
@@ -143,61 +142,61 @@ export class ZombieAI {
                 break;
         }
     }
-    
+
     private setState(newState: ZombieAIState, target?: Player): void {
         this._currentState = newState;
         this._target = target;
-        
+
         if (target) {
             this._targetPosition = target.position;
             this._lastTargetSwitch = this.zombie.game.now;
         }
     }
-    
+
     private findNearestPlayer(): Player | undefined {
         let nearest: Player | undefined;
         let minDistance = Infinity;
-        
+
         for (const player of this.zombie.game.livingPlayers) {
             if (player.isZombie || player === this.zombie) continue;
-            
+
             const distance = Geometry.distance(this.zombie.position, player.position);
             if (distance < minDistance) {
                 minDistance = distance;
                 nearest = player;
             }
         }
-        
+
         return nearest;
     }
-    
+
     private canDetectPlayer(player: Player): boolean {
         const distance = Geometry.distance(this.zombie.position, player.position);
         return distance <= this.zombie.getDetectionRange();
     }
-    
+
     private isInAttackRange(player: Player): boolean {
         const distance = Geometry.distance(this.zombie.position, player.position);
         return distance <= this.zombie.getAttackRange();
     }
-    
+
     private setWanderTarget(): void {
         const angle = randomFloat(0, Math.PI * 2);
         const distance = randomFloat(5, ZombieAIConstants.wanderRadius);
-        
+
         this._wanderTarget = Vec.add(
             this.zombie.position,
             Vec.fromPolar(angle, distance)
         );
         this._targetPosition = this._wanderTarget;
     }
-    
+
     private findGroupTarget(): void {
         // Find nearby zombies to group with
         const nearbyZombies = Array.from(this.zombie.game.zombies || [])
             .filter(z => z !== this.zombie && !z.dead)
             .filter(z => Geometry.distance(this.zombie.position, z.position) <= ZombieAIConstants.groupRadius);
-        
+
         if (nearbyZombies.length > 0) {
             const target = pickRandomInArray(nearbyZombies);
             this._targetPosition = target.position;
@@ -205,14 +204,14 @@ export class ZombieAI {
             this.setWanderTarget();
         }
     }
-    
+
     private reachedTarget(target: Vector): boolean {
         return Geometry.distance(this.zombie.position, target) < 2;
     }
-    
+
     private checkIfStuck(): void {
         const distance = Geometry.distance(this.zombie.position, this._lastPosition);
-        
+
         if (distance < ZombieAIConstants.stuckThreshold) {
             if (!this._stuckPosition) {
                 this._stuckPosition = Vec.clone(this.zombie.position);
@@ -226,7 +225,7 @@ export class ZombieAI {
             this._stuckPosition = undefined;
         }
     }
-    
+
     private updatePathfinding(): void {
         if (!this._targetPosition) return;
 
@@ -257,7 +256,7 @@ export class ZombieAI {
             this._intermediateTarget = Vec.add(this.zombie.position, Vec.scale(noisyDirection, 2));
         }
     }
-    
+
     getCurrentState(): AIState {
         const movement: AIMovement = { up: false, down: false, left: false, right: false };
 
@@ -283,16 +282,16 @@ export class ZombieAI {
             currentState: this._currentState
         };
     }
-    
+
     onTakeDamage(source: Player): void {
         // Become aggressive for a period
         this._aggroUntil = this.zombie.game.now + ZombieAIConstants.aggroTimeout;
-        
+
         // Switch target to attacker if not already targeting
         if (!this._target || this.zombie.game.now - this._lastTargetSwitch > ZombieAIConstants.targetSwitchCooldown) {
             this.setState(ZombieAIState.Hunting, source);
         }
-        
+
         // Check if should flee
         if (this.zombie.health / this.zombie.maxHealth < ZombieAIConstants.fleeHealthThreshold) {
             this.setState(ZombieAIState.Fleeing);
@@ -301,7 +300,7 @@ export class ZombieAI {
             this._targetPosition = Vec.add(this.zombie.position, Vec.scale(Vec.normalize(fleeDirection), 20));
         }
     }
-    
+
     onEvolution(multiplier: number): void {
         // Become more aggressive after evolution
         this._aggroUntil = this.zombie.game.now + (ZombieAIConstants.aggroTimeout * multiplier);
@@ -509,37 +508,12 @@ export class ZombieAI {
 
         // If pack has a target, adopt it
         for (const zombie of nearbyZombies) {
-            const zombieAI = (zombie as any).ai as ZombieAI;
-            if (zombieAI._target && zombieAI._currentState === ZombieAIState.Hunting) {
+            if (zombie.ai._target && zombie.ai._currentState === ZombieAIState.Hunting) {
                 if (!this._target || this.zombie.game.now - this._lastTargetSwitch > 1000) {
-                    this.setState(ZombieAIState.Hunting, zombieAI._target);
+                    this.setState(ZombieAIState.Hunting, zombie.ai._target);
                     break;
                 }
             }
-        }
-    }
-
-    /**
-     * Tactical positioning based on zombie type
-     */
-    private getTacticalPosition(target: Player): Vector {
-        const direction = Vec.sub(target.position, this.zombie.position);
-        const distance = Vec.len(direction);
-
-        switch (this.zombie.zombieType.idString) {
-            case "fast_runner":
-                // Fast runners try to flank
-                const flankAngle = Math.random() > 0.5 ? Math.PI / 3 : -Math.PI / 3;
-                const flankDirection = Vec.rotate(direction, flankAngle);
-                return Vec.add(this.zombie.position, Vec.scale(Vec.normalize(flankDirection), 8));
-
-            case "tank_zombie":
-                // Tanks charge directly
-                return Vec.add(this.zombie.position, Vec.scale(Vec.normalize(direction), 5));
-
-            default:
-                // Basic zombies use simple approach
-                return Vec.add(this.zombie.position, Vec.scale(Vec.normalize(direction), 3));
         }
     }
 
@@ -549,8 +523,9 @@ export class ZombieAI {
      */
     private updateLODLevel(): void {
         const nearestPlayer = this.findNearestPlayer();
-        this._distanceToNearestPlayer = nearestPlayer ?
-            Geometry.distance(this.zombie.position, nearestPlayer.position) : Infinity;
+        this._distanceToNearestPlayer = nearestPlayer
+            ? Geometry.distance(this.zombie.position, nearestPlayer.position)
+            : Infinity;
 
         const thresholds = ZombieAIConstants.lodDistanceThresholds;
 
